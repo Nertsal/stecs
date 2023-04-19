@@ -28,6 +28,8 @@ mod collection {
     impl<T> Storage<T> for Collection<T> {
         type Id = Id;
 
+        type IdIter = std::vec::IntoIter<Id>;
+
         type Iterator<'a> = std::collections::hash_map::Values<'a, Id, T>
         where
             Self: 'a,
@@ -37,6 +39,10 @@ mod collection {
         where
             Self: 'a,
             T: 'a;
+
+        fn ids(&self) -> Self::IdIter {
+            self.inner.keys().copied().collect::<Vec<_>>().into_iter()
+        }
 
         fn insert(&mut self, value: T) -> Self::Id {
             let id = self.next_id;
@@ -62,11 +68,11 @@ mod collection {
         }
 
         fn iter(&self) -> Self::Iterator<'_> {
-            todo!()
+            self.inner.values()
         }
 
         fn iter_mut(&mut self) -> Self::IteratorMut<'_> {
-            todo!()
+            self.inner.values_mut()
         }
     }
 
@@ -74,6 +80,7 @@ mod collection {
 
     impl StorageFamily for CollectionFamily {
         type Id = Id;
+        type IdIter = std::vec::IntoIter<Id>;
         type Storage<T> = Collection<T>;
     }
 
@@ -95,6 +102,7 @@ struct GameWorld {
 struct Unit {
     // id: Id,
     health: f32,
+    tick: usize,
 }
 
 // #[derive(StructOf)]
@@ -111,19 +119,87 @@ fn main() {
         particles: Default::default(),
     };
 
-    world.units.insert(Unit { health: 10.0 });
-    world.units.insert(Unit { health: 15.0 });
+    world.units.insert(Unit {
+        health: 10.0,
+        tick: 7,
+    });
+    world.units.insert(Unit {
+        health: 15.0,
+        tick: 3,
+    });
 
     for _ in 0..10 {
         world.particles.insert(Particle { time: 1.0 });
     }
 
-    // for unit in world.units.iter() {
-    //     println!("unit: {unit:?}");
-    // }
+    println!("Units:");
+    for (i, unit) in UnitRef::query(&world.units).enumerate() {
+        println!("{i:02}: {unit:?}");
+    }
+
+    println!("\nParticles:");
+    for (i, particle) in ParticleRef::query(&world.particles).enumerate() {
+        println!("{i:02}: {particle:?}");
+    }
 }
 
-// -- TODO: derive --
+// -- TODO: derive Querying custom types --
+
+#[derive(Debug)]
+struct UnitRef<'a> {
+    health: &'a f32,
+    tick: &'a usize,
+}
+
+impl<'a> StructQuery for UnitRef<'a> {
+    type Item<'b> = UnitRef<'b>;
+}
+
+impl<'b, F: StorageFamily> Queryable<UnitRef<'b>> for UnitStructOf<F> {
+    fn get(&self, id: Self::Id) -> Option<<UnitRef<'b> as StructQuery>::Item<'_>> {
+        let health = self.health.get(id)?;
+        let tick = self.tick.get(id)?;
+        Some(UnitRef { health, tick })
+    }
+}
+
+#[derive(Debug)]
+struct ParticleRef<'a> {
+    time: &'a f32,
+}
+
+impl<'a> StructQuery for ParticleRef<'a> {
+    type Item<'b> = ParticleRef<'b>;
+}
+
+impl<'b, F: StorageFamily> Queryable<ParticleRef<'b>> for ParticleStructOf<F> {
+    fn get(&self, id: Self::Id) -> Option<<ParticleRef<'b> as StructQuery>::Item<'_>> {
+        let time = self.time.get(id)?;
+        Some(ParticleRef { time })
+    }
+}
+
+// -- TODO: derive Querying traits --
+
+impl<F: StorageFamily> IdHolder for UnitStructOf<F> {
+    type Id = ArchetypeId<Self>;
+    type IdIter = F::IdIter;
+
+    fn ids(&self) -> Self::IdIter {
+        self.health.ids()
+    }
+}
+
+impl<F: StorageFamily> IdHolder for ParticleStructOf<F> {
+    type Id = ArchetypeId<Self>;
+    type IdIter = F::IdIter;
+
+    fn ids(&self) -> Self::IdIter {
+        self.time.ids()
+    }
+}
+
+// -- TODO: derive Structure --
 
 impl SplitFields for Unit {
     type StructOf<F: StorageFamily> = UnitStructOf<F>;
@@ -131,6 +207,7 @@ impl SplitFields for Unit {
 
 struct UnitStructOf<F: StorageFamily> {
     health: F::Storage<f32>,
+    tick: F::Storage<usize>,
 }
 
 impl<F: StorageFamily> Archetype for UnitStructOf<F> {
@@ -138,12 +215,14 @@ impl<F: StorageFamily> Archetype for UnitStructOf<F> {
     type Family = F;
 
     fn insert(&mut self, value: Self::Item) -> ArchetypeId<Self> {
-        self.health.insert(value.health)
+        self.health.insert(value.health);
+        self.tick.insert(value.tick)
     }
 
     fn remove(&mut self, id: ArchetypeId<Self>) -> Option<Self::Item> {
         let health = self.health.remove(id)?;
-        Some(Unit { health })
+        let tick = self.tick.remove(id)?;
+        Some(Unit { health, tick })
     }
 }
 
@@ -151,6 +230,7 @@ impl<F: StorageFamily> Default for UnitStructOf<F> {
     fn default() -> Self {
         Self {
             health: Default::default(),
+            tick: Default::default(),
         }
     }
 }
