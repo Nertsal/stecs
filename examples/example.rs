@@ -133,14 +133,29 @@ fn main() {
     }
 
     println!("Units:");
-    for (i, unit) in UnitRef::query(&world.units).enumerate() {
-        println!("{i:02}: {unit:?}");
+    for (id, unit) in UnitRef::query(&world.units).enumerate() {
+        println!("{id:?}: {unit:?}");
     }
 
     println!("\nParticles:");
     for (i, particle) in ParticleRef::query(&world.particles).enumerate() {
         println!("{i:02}: {particle:?}");
     }
+
+    println!("\nHealths:");
+    for (i, health) in query!(world.units, (mut health)).enumerate() {
+        println!("{i:02}: {health:?}");
+        println!("  Inner query over ticks:");
+        for (j, tick) in query!(world.units, (mut tick)).enumerate() {
+            println!("  {j:02}: {tick:?}");
+        }
+    }
+
+    // Check that we still own the world.
+    world.units.insert(Unit {
+        health: 5.0,
+        tick: 1,
+    });
 }
 
 // -- TODO: derive Querying custom types --
