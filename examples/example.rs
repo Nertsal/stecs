@@ -2,14 +2,12 @@ use ecs::prelude::*;
 
 use collection::Collection;
 
-// -- Example --
-
 struct GameWorld {
     units: StructOf<Collection<Unit>>, // UnitStructOf<CollectionFamily>,
     particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
 }
 
-#[derive(StructOf)]
+#[derive(StructOf, Debug)]
 struct Unit {
     // id: Id,
     health: f32,
@@ -19,6 +17,19 @@ struct Unit {
 #[derive(StructOf, Debug)]
 struct Particle {
     time: f32,
+}
+
+#[derive(Query, Debug)]
+#[query(structof = "UnitStructOf")]
+struct UnitRef<'a> {
+    health: &'a f32,
+    tick: &'a usize,
+}
+
+#[derive(Query, Debug)]
+#[query(structof = "ParticleStructOf")]
+struct ParticleRef<'a> {
+    time: &'a f32,
 }
 
 fn main() {
@@ -63,42 +74,6 @@ fn main() {
 
     // Check that we still own the world
     drop(world);
-}
-
-// -- TODO: derive Querying custom types --
-
-#[derive(Debug)]
-struct UnitRef<'a> {
-    health: &'a f32,
-    tick: &'a usize,
-}
-
-impl<'a> StructQuery for UnitRef<'a> {
-    type Item<'b> = UnitRef<'b>;
-}
-
-impl<'b, F: StorageFamily> Queryable<UnitRef<'b>> for UnitStructOf<F> {
-    fn get(&self, id: Self::Id) -> Option<<UnitRef<'b> as StructQuery>::Item<'_>> {
-        let health = self.health.get(id)?;
-        let tick = self.tick.get(id)?;
-        Some(UnitRef { health, tick })
-    }
-}
-
-#[derive(Debug)]
-struct ParticleRef<'a> {
-    time: &'a f32,
-}
-
-impl<'a> StructQuery for ParticleRef<'a> {
-    type Item<'b> = ParticleRef<'b>;
-}
-
-impl<'b, F: StorageFamily> Queryable<ParticleRef<'b>> for ParticleStructOf<F> {
-    fn get(&self, id: Self::Id) -> Option<<ParticleRef<'b> as StructQuery>::Item<'_>> {
-        let time = self.time.get(id)?;
-        Some(ParticleRef { time })
-    }
 }
 
 /// Collection storage.
