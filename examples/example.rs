@@ -9,16 +9,14 @@ struct GameWorld {
     particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
 }
 
-// #[derive(StructOf)]
-#[derive(Debug)]
+#[derive(StructOf)]
 struct Unit {
     // id: Id,
     health: f32,
     tick: usize,
 }
 
-// #[derive(StructOf)]
-#[derive(Debug)]
+#[derive(StructOf, Debug)]
 struct Particle {
     time: f32,
 }
@@ -100,92 +98,6 @@ impl<'b, F: StorageFamily> Queryable<ParticleRef<'b>> for ParticleStructOf<F> {
     fn get(&self, id: Self::Id) -> Option<<ParticleRef<'b> as StructQuery>::Item<'_>> {
         let time = self.time.get(id)?;
         Some(ParticleRef { time })
-    }
-}
-
-// -- TODO: derive Querying traits --
-
-impl<F: StorageFamily> IdHolder for UnitStructOf<F> {
-    type Id = ArchetypeId<Self>;
-    type IdIter = F::IdIter;
-
-    fn ids(&self) -> Self::IdIter {
-        self.health.ids()
-    }
-}
-
-impl<F: StorageFamily> IdHolder for ParticleStructOf<F> {
-    type Id = ArchetypeId<Self>;
-    type IdIter = F::IdIter;
-
-    fn ids(&self) -> Self::IdIter {
-        self.time.ids()
-    }
-}
-
-// -- TODO: derive Structure --
-
-impl SplitFields for Unit {
-    type StructOf<F: StorageFamily> = UnitStructOf<F>;
-}
-
-struct UnitStructOf<F: StorageFamily> {
-    health: F::Storage<f32>,
-    tick: F::Storage<usize>,
-}
-
-impl<F: StorageFamily> Archetype for UnitStructOf<F> {
-    type Item = Unit;
-    type Family = F;
-
-    fn insert(&mut self, value: Self::Item) -> ArchetypeId<Self> {
-        self.health.insert(value.health);
-        self.tick.insert(value.tick)
-    }
-
-    fn remove(&mut self, id: ArchetypeId<Self>) -> Option<Self::Item> {
-        let health = self.health.remove(id)?;
-        let tick = self.tick.remove(id)?;
-        Some(Unit { health, tick })
-    }
-}
-
-impl<F: StorageFamily> Default for UnitStructOf<F> {
-    fn default() -> Self {
-        Self {
-            health: Default::default(),
-            tick: Default::default(),
-        }
-    }
-}
-
-impl SplitFields for Particle {
-    type StructOf<F: StorageFamily> = ParticleStructOf<F>;
-}
-
-struct ParticleStructOf<F: StorageFamily> {
-    time: F::Storage<f32>,
-}
-
-impl<F: StorageFamily> Archetype for ParticleStructOf<F> {
-    type Item = Particle;
-    type Family = F;
-
-    fn insert(&mut self, value: Self::Item) -> ArchetypeId<Self> {
-        self.time.insert(value.time)
-    }
-
-    fn remove(&mut self, id: ArchetypeId<Self>) -> Option<Self::Item> {
-        let time = self.time.remove(id)?;
-        Some(Particle { time })
-    }
-}
-
-impl<F: StorageFamily> Default for ParticleStructOf<F> {
-    fn default() -> Self {
-        Self {
-            time: Default::default(),
-        }
     }
 }
 
