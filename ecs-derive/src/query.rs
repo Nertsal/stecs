@@ -47,7 +47,7 @@ impl QueryOpts {
         });
 
         quote! {
-            impl<'a, F: StorageFamily> Query<F> for #query_name<'a> {
+            impl<'a, F: StorageFamily> StructQuery<F> for #query_name<'a> {
                 type Base = #base_name;
                 type Item<'b> = #query_name<'b>;
                 fn get(

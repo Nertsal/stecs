@@ -7,7 +7,7 @@
 
 // -- Macros --
 
-pub use ecs_derive::{Query, StructOf};
+pub use ecs_derive::{StructOf, StructQuery};
 
 // Adapted from [soa_derive](https://github.com/lumol-org/soa-derive)
 #[macro_export]
@@ -73,5 +73,5 @@ mod query;
 mod storage;
 
 pub mod prelude {
-    pub use crate::{archetype::*, query, query::*, storage::*, Query, StructOf};
+    pub use crate::{archetype::*, query, query::*, storage::*, StructOf, StructQuery};
 }

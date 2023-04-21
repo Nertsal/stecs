@@ -14,7 +14,7 @@ pub fn derive_struct_of(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     }
 }
 
-#[proc_macro_derive(Query, attributes(query))]
+#[proc_macro_derive(StructQuery, attributes(query))]
 pub fn derive_query(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: syn::DeriveInput = syn::parse_macro_input!(input);
     match query::QueryOpts::from_derive_input(&input) {

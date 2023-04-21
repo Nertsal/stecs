@@ -19,14 +19,14 @@ struct Particle {
     time: f32,
 }
 
-#[derive(Query, Debug)]
+#[derive(StructQuery, Debug)]
 #[query(base = "Unit")]
 struct UnitRef<'a> {
     health: &'a f32,
     tick: &'a usize,
 }
 
-#[derive(Query, Debug)]
+#[derive(StructQuery, Debug)]
 #[query(base = "Particle")]
 struct ParticleRef<'a> {
     time: &'a f32,

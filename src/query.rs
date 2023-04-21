@@ -1,6 +1,6 @@
 use crate::{archetype::SplitFields, prelude::Archetype, storage::StorageFamily};
 
-pub trait Query<F: StorageFamily> {
+pub trait StructQuery<F: StorageFamily> {
     type Base: SplitFields<F>;
     type Item<'a>;
 
@@ -20,14 +20,14 @@ pub trait Query<F: StorageFamily> {
     }
 }
 
-pub struct QueryIter<'a, Q: Query<F>, F: StorageFamily> {
+pub struct QueryIter<'a, Q: StructQuery<F>, F: StorageFamily> {
     ids: F::IdIter,
     struct_of: &'a <Q::Base as SplitFields<F>>::StructOf,
 }
 
 // -- Query impl --
 
-impl<'a, Q: Query<F>, F: StorageFamily> Iterator for QueryIter<'a, Q, F> {
+impl<'a, Q: StructQuery<F>, F: StorageFamily> Iterator for QueryIter<'a, Q, F> {
     type Item = Q::Item<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
