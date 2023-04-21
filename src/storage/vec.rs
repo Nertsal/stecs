@@ -1,6 +1,6 @@
 use crate::archetype::{SplitFields, StructOfAble};
 
-use super::{Storage, StorageFamily};
+use super::*;
 
 impl<T> Storage<T> for Vec<T> {
     type Id = usize;
@@ -42,15 +42,15 @@ impl<T> Storage<T> for Vec<T> {
     }
 }
 
-impl<T: SplitFields<VecFamily>> StructOfAble for Vec<T> {
-    type Struct = T;
-    type Family = VecFamily;
-}
-
 pub struct VecFamily;
 
 impl StorageFamily for VecFamily {
     type Id = usize;
     type IdIter = std::ops::Range<usize>;
     type Storage<T> = Vec<T>;
+}
+
+impl<T: SplitFields<VecFamily>> StructOfAble for Vec<T> {
+    type Struct = T;
+    type Family = VecFamily;
 }

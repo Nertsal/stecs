@@ -19,44 +19,26 @@ struct Particle {
     time: f32,
 }
 
-// #[derive(StructQuery, Debug)]
-// #[query(base = "Unit")]
-#[derive(Debug)]
+#[derive(StructQuery, Debug)]
 struct UnitRef<'a> {
     health: &'a f32,
     tick: &'a usize,
 }
 
-struct UnitRefComponents<'a, F: StorageFamily> {
-    health: &'a F::Storage<f32>,
-    tick: &'a F::Storage<usize>,
+#[derive(StructQuery, Debug)]
+struct ParticleRef<'a> {
+    time: &'a f32,
 }
 
-impl<'b, F: StorageFamily> QueryComponents<F> for UnitRefComponents<'b, F> {
-    type Item<'a> = UnitRef<'a>
-    where
-        Self: 'a;
-
-    fn ids(&self) -> F::IdIter {
-        self.health.ids()
-    }
-
-    fn get(&self, id: F::Id) -> Option<Self::Item<'_>> {
-        let health = self.health.get(id)?;
-        let tick = self.tick.get(id)?;
-        Some(UnitRef { health, tick })
-    }
+#[derive(StructQuery, Debug)]
+struct HealthRef<'a> {
+    health: &'a f32,
 }
 
-impl<'b, F: StorageFamily + 'static> StructQuery<F> for UnitRef<'b> {
-    type Components<'a> = UnitRefComponents<'a, F>;
+#[derive(StructQuery, Debug)]
+struct TickRef<'a> {
+    tick: &'a usize,
 }
-
-// #[derive(StructQuery, Debug)]
-// #[query(base = "Particle")]
-// struct ParticleRef<'a> {
-//     time: &'a f32,
-// }
 
 fn main() {
     println!("Hello, example!");
@@ -79,31 +61,24 @@ fn main() {
         world.particles.insert(Particle { time: 1.0 });
     }
 
-    let components = query_components!(world.units, UnitRefComponents, (health, tick));
-    let query: Query<_, collection::CollectionFamily> = UnitRef::query(components);
-    // let query = query!(world.units, UnitRef);
-    for unit in query.iter() {
+    println!("Units:");
+    for unit in query_unit_ref!(world.units).iter() {
         println!("{unit:?}");
     }
 
-    // println!("Units:");
-    // for (id, unit) in UnitRef::query(&world.units).enumerate() {
-    //     println!("{id:?}: {unit:?}");
-    // }
+    println!("\nParticles:");
+    for particle in query_particle_ref!(world.particles).iter() {
+        println!("{particle:?}");
+    }
 
-    // println!("\nParticles:");
-    // for (i, particle) in ParticleRef::query(&world.particles).enumerate() {
-    //     println!("{i:02}: {particle:?}");
-    // }
-
-    // println!("\nHealths:");
-    // for (i, health) in query!(world.units, (mut health)).enumerate() {
-    //     println!("{i:02}: {health:?}");
-    //     println!("  Inner query over ticks:");
-    //     for (j, tick) in query!(world.units, (mut tick)).enumerate() {
-    //         println!("  {j:02}: {tick:?}");
-    //     }
-    // }
+    println!("\nHealths:");
+    for health in query_health_ref!(world.units).iter() {
+        println!("{health:?}");
+        println!("  Inner query over ticks:");
+        for tick in query_tick_ref!(world.units).iter() {
+            println!("  {tick:?}");
+        }
+    }
 
     // Check that we still own the world
     drop(world);
