@@ -20,14 +20,14 @@ struct Particle {
 }
 
 #[derive(Query, Debug)]
-#[query(structof = "UnitStructOf")]
+#[query(base = "Unit")]
 struct UnitRef<'a> {
     health: &'a f32,
     tick: &'a usize,
 }
 
 #[derive(Query, Debug)]
-#[query(structof = "ParticleStructOf")]
+#[query(base = "Particle")]
 struct ParticleRef<'a> {
     time: &'a f32,
 }
@@ -158,7 +158,7 @@ mod collection {
         type Storage<T> = Collection<T>;
     }
 
-    impl<T: SplitFields> StructOfAble for Collection<T> {
+    impl<T: SplitFields<CollectionFamily>> StructOfAble for Collection<T> {
         type Struct = T;
         type Family = CollectionFamily;
     }

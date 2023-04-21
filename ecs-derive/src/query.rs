@@ -5,7 +5,7 @@ use super::*;
 pub struct QueryOpts {
     ident: syn::Ident,
     data: ast::Data<(), QueryField>,
-    structof: syn::Ident,
+    base: syn::Ident,
 }
 
 #[derive(FromField)]
@@ -18,7 +18,7 @@ impl QueryOpts {
         let Self {
             ident: query_name,
             data: query_data,
-            structof: structof_name,
+            base: base_name,
         } = self;
 
         let query_fields = query_data
@@ -26,45 +26,37 @@ impl QueryOpts {
             .expect("Expected a struct with named fields")
             .fields;
 
-        let struct_query = quote! {
-            impl<'a> StructQuery for #query_name<'a> {
+        let mut get = query_fields
+            .iter()
+            .map(|field| {
+                let name = field.ident.as_ref().unwrap();
+                quote! {
+                    let #name = struct_of.#name.get(id)?;
+                }
+            })
+            .collect::<Vec<_>>();
+        let fields = query_fields
+            .iter()
+            .map(|field| {
+                let name = field.ident.as_ref().unwrap();
+                quote! { #name }
+            })
+            .collect::<Vec<_>>();
+        get.push(quote! {
+            Some(Self::Item { #(#fields),* })
+        });
+
+        quote! {
+            impl<'a, F: StorageFamily> Query<F> for #query_name<'a> {
+                type Base = #base_name;
                 type Item<'b> = #query_name<'b>;
-            }
-        };
-
-        let queryable = {
-            let mut get = query_fields
-                .iter()
-                .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    quote! {
-                        let #name = self.#name.get(id)?;
-                    }
-                })
-                .collect::<Vec<_>>();
-            let fields = query_fields
-                .iter()
-                .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    quote! { #name }
-                })
-                .collect::<Vec<_>>();
-            get.push(quote! {
-                Some(#query_name { #(#fields),* })
-            });
-
-            quote! {
-                impl<'a, F: StorageFamily> Queryable<#query_name<'a>> for #structof_name<F> {
-                    fn get(&self, id: Self::Id) -> Option<<#query_name<'a> as StructQuery>::Item<'_>> {
-                        #(#get)*
-                    }
+                fn get(
+                    struct_of: &<Self::Base as SplitFields<F>>::StructOf,
+                    id: F::Id,
+                ) -> Option<Self::Item<'_>> {
+                    #(#get)*
                 }
             }
-        };
-
-        let mut generated = TokenStream::new();
-        generated.append_all(struct_query);
-        generated.append_all(queryable);
-        generated
+        }
     }
 }

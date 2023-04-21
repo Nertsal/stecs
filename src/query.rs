@@ -1,69 +1,37 @@
-use crate::archetype::{SplitFields, StructOf, StructOfAble};
+use crate::{archetype::SplitFields, prelude::Archetype, storage::StorageFamily};
 
-pub trait StructQuery {
+pub trait Query<F: StorageFamily> {
+    type Base: SplitFields<F>;
     type Item<'a>;
-    fn query<Q: Queryable<Self>>(queryable: &Q) -> QueryIter<'_, Self, Q, Q::IdIter>
-    where
-        Self: Sized,
-    {
-        queryable.query()
-    }
-}
 
-pub trait IdHolder {
-    type Id;
-    type IdIter: Iterator<Item = Self::Id>;
-    fn ids(&self) -> Self::IdIter;
-}
+    fn get(
+        struct_of: &<Self::Base as SplitFields<F>>::StructOf,
+        id: F::Id,
+    ) -> Option<Self::Item<'_>>;
 
-pub trait Queryable<Q: StructQuery>: IdHolder {
-    fn get(&self, id: Self::Id) -> Option<Q::Item<'_>>;
-    fn query(&self) -> QueryIter<'_, Q, Self, Self::IdIter>
+    fn query(struct_of: &<Self::Base as SplitFields<F>>::StructOf) -> QueryIter<'_, Self, F>
     where
         Self: Sized,
     {
         QueryIter {
-            ids: self.ids(),
-            queryable: self,
-            phantom_data: std::marker::PhantomData::default(),
+            ids: struct_of.ids(),
+            struct_of,
         }
     }
 }
 
-pub struct QueryIter<'a, S: StructQuery, Q: Queryable<S>, I: Iterator<Item = Q::Id>> {
-    ids: I,
-    queryable: &'a Q,
-    phantom_data: std::marker::PhantomData<S>,
+pub struct QueryIter<'a, Q: Query<F>, F: StorageFamily> {
+    ids: F::IdIter,
+    struct_of: &'a <Q::Base as SplitFields<F>>::StructOf,
 }
 
 // -- Query impl --
 
-impl<'a, S: StructQuery, Q: Queryable<S>, I: Iterator<Item = Q::Id>> Iterator
-    for QueryIter<'a, S, Q, I>
-{
-    type Item = S::Item<'a>;
+impl<'a, Q: Query<F>, F: StorageFamily> Iterator for QueryIter<'a, Q, F> {
+    type Item = Q::Item<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let id = self.ids.next()?;
-        self.queryable.get(id)
-    }
-}
-
-impl<S: StructOfAble> IdHolder for StructOf<S> {
-    type Id = <<S::Struct as SplitFields>::StructOf<S::Family> as IdHolder>::Id;
-
-    type IdIter = <<S::Struct as SplitFields>::StructOf<S::Family> as IdHolder>::IdIter;
-
-    fn ids(&self) -> Self::IdIter {
-        self.inner.ids()
-    }
-}
-
-impl<Q: StructQuery, S: StructOfAble> Queryable<Q> for StructOf<S>
-where
-    <S::Struct as SplitFields>::StructOf<S::Family>: Queryable<Q>,
-{
-    fn get(&self, id: Self::Id) -> Option<<Q as StructQuery>::Item<'_>> {
-        self.inner.get(id)
+        Q::get(self.struct_of, id)
     }
 }

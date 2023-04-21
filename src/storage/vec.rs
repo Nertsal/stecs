@@ -42,7 +42,7 @@ impl<T> Storage<T> for Vec<T> {
     }
 }
 
-impl<T: SplitFields> StructOfAble for Vec<T> {
+impl<T: SplitFields<VecFamily>> StructOfAble for Vec<T> {
     type Struct = T;
     type Family = VecFamily;
 }

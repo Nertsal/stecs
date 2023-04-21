@@ -31,8 +31,8 @@ impl StructOfOpts {
         );
 
         let struct_split_fields = quote! {
-            impl SplitFields for #struct_name {
-                type StructOf<F: StorageFamily> = #struct_of_name<F>;
+            impl<F: StorageFamily> SplitFields<F> for #struct_name {
+                type StructOf = #struct_of_name<F>;
             }
         };
 
@@ -85,16 +85,26 @@ impl StructOfOpts {
                 .collect::<Vec<_>>();
             remove.push(quote! { Some( #struct_name { #(#fields),* } )});
 
-            quote! {
-                impl<F: StorageFamily> Archetype for #struct_of_name<F> {
-                    type Item = #struct_name;
-                    type Family = F;
+            let ids = struct_fields
+                .first()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    quote! {
+                        self.#name.ids()
+                    }
+                })
+                .expect("Expected at least one field");
 
-                    fn insert(&mut self, value: Self::Item) -> ArchetypeId<Self> {
+            quote! {
+                impl<F: StorageFamily> Archetype<F> for #struct_of_name<F> {
+                    type Item = #struct_name;
+                    fn ids(&self) -> F::IdIter {
+                        #ids
+                    }
+                    fn insert(&mut self, value: Self::Item) -> F::Id {
                         #(#insert)*
                     }
-
-                    fn remove(&mut self, id: ArchetypeId<Self>) -> Option<Self::Item> {
+                    fn remove(&mut self, id: F::Id) -> Option<Self::Item> {
                         #(#remove)*
                     }
                 }
@@ -123,34 +133,11 @@ impl StructOfOpts {
             }
         };
 
-        let struct_of_id_holder = {
-            let ids = struct_fields
-                .first()
-                .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    quote! {
-                        self.#name.ids()
-                    }
-                })
-                .expect("Expected at least on field");
-
-            quote! {
-                impl<F: StorageFamily> IdHolder for #struct_of_name<F> {
-                    type Id = ArchetypeId<Self>;
-                    type IdIter = F::IdIter;
-                    fn ids(&self) -> Self::IdIter {
-                        #ids
-                    }
-                }
-            }
-        };
-
         let mut generated = TokenStream::new();
         generated.append_all(struct_split_fields);
         generated.append_all(struct_of);
         generated.append_all(struct_of_archetype);
         generated.append_all(struct_of_default);
-        generated.append_all(struct_of_id_holder);
         generated
     }
 }
