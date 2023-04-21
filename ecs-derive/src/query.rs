@@ -46,8 +46,11 @@ impl QueryOpts {
                         panic!("Expected a reference");
                     };
                     let ty = &refer.elem;
-                    quote! {
-                        #name: &'a F::Storage<#ty>,
+                    let mutable = refer.mutability.is_some();
+                    if mutable {
+                        quote! { #name: &'a mut F::Storage<#ty>, }
+                    } else {
+                        quote! { #name: &'a F::Storage<#ty>, }
                     }
                 })
                 .collect::<Vec<_>>();
@@ -75,8 +78,14 @@ impl QueryOpts {
                 .iter()
                 .map(|field| {
                     let name = field.ident.as_ref().unwrap();
-                    quote! {
-                        let #name = self.#name.get(id)?;
+                    let syn::Type::Reference(ty) = &field.ty else {
+                        panic!("Expected reference fields");
+                    };
+                    let mutable = ty.mutability.is_some();
+                    if mutable {
+                        quote! { let #name = self.#name.get_mut(id)?; }
+                    } else {
+                        quote! { let #name = self.#name.get(id)?; }
                     }
                 })
                 .collect::<Vec<_>>();
@@ -123,7 +132,15 @@ impl QueryOpts {
                 .iter()
                 .map(|field| {
                     let name = field.ident.as_ref().unwrap();
-                    quote! { #name }
+                    let syn::Type::Reference(ty) = &field.ty else {
+                        panic!("Expected reference fields");
+                    };
+                    let mutable = ty.mutability.is_some();
+                    if mutable {
+                        quote! { mut #name }
+                    } else {
+                        quote! { #name }
+                    }
                 })
                 .collect::<Vec<_>>();
 

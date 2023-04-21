@@ -30,15 +30,15 @@ struct ParticleRef<'a> {
     time: &'a f32,
 }
 
-#[derive(StructQuery, Debug)]
-struct HealthRef<'a> {
-    health: &'a f32,
-}
+// #[derive(StructQuery, Debug)]
+// struct HealthRef<'a> {
+//     health: &'a mut f32,
+// }
 
-#[derive(StructQuery, Debug)]
-struct TickRef<'a> {
-    tick: &'a usize,
-}
+// #[derive(StructQuery, Debug)]
+// struct TickRef<'a> {
+//     tick: &'a usize,
+// }
 
 fn main() {
     println!("Hello, example!");
@@ -71,14 +71,14 @@ fn main() {
         println!("{particle:?}");
     }
 
-    println!("\nHealths:");
-    for health in query_health_ref!(world.units).iter() {
-        println!("{health:?}");
-        println!("  Inner query over ticks:");
-        for tick in query_tick_ref!(world.units).iter() {
-            println!("  {tick:?}");
-        }
-    }
+    // println!("\nHealths:");
+    // for health in query_health_ref!(world.units).iter() {
+    //     println!("{health:?}");
+    //     println!("  Inner query over ticks:");
+    //     for tick in query_tick_ref!(world.units).iter() {
+    //         println!("  {tick:?}");
+    //     }
+    // }
 
     // Check that we still own the world
     drop(world);
