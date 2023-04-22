@@ -30,15 +30,15 @@ struct ParticleRef<'a> {
     time: &'a f32,
 }
 
-// #[derive(StructQuery, Debug)]
-// struct HealthRef<'a> {
-//     health: &'a mut f32,
-// }
+#[derive(StructQuery, Debug)]
+struct HealthRef<'a> {
+    health: &'a mut f32,
+}
 
-// #[derive(StructQuery, Debug)]
-// struct TickRef<'a> {
-//     tick: &'a usize,
-// }
+#[derive(StructQuery, Debug)]
+struct TickRef<'a> {
+    tick: &'a mut usize,
+}
 
 fn main() {
     println!("Hello, example!");
@@ -62,23 +62,40 @@ fn main() {
     }
 
     println!("Units:");
-    for unit in query_unit_ref!(world.units).iter() {
+    let mut query = query_unit_ref!(world.units);
+    let mut iter = query.iter();
+    while let Some(unit) = iter.next() {
         println!("{unit:?}");
     }
 
     println!("\nParticles:");
-    for particle in query_particle_ref!(world.particles).iter() {
+    let mut query = query_particle_ref!(world.particles);
+    let mut iter = query.iter();
+    while let Some(particle) = iter.next() {
         println!("{particle:?}");
     }
 
-    // println!("\nHealths:");
-    // for health in query_health_ref!(world.units).iter() {
-    //     println!("{health:?}");
-    //     println!("  Inner query over ticks:");
-    //     for tick in query_tick_ref!(world.units).iter() {
-    //         println!("  {tick:?}");
-    //     }
-    // }
+    println!("\nHealths:");
+    let mut query = query_health_ref!(world.units);
+    let mut iter = query.iter();
+    while let Some(health) = iter.next() {
+        println!("Updating {health:?}");
+        println!("  Inner query over ticks:");
+        let mut query = query_tick_ref!(world.units);
+        let mut iter = query.iter();
+        while let Some(tick) = iter.next() {
+            println!("  Incrementing {tick:?}");
+            *tick.tick += 1;
+        }
+        *health.health -= 5.0;
+    }
+
+    println!("\nUpdated healths");
+    let mut query = query_health_ref!(world.units);
+    let mut iter = query.iter();
+    while let Some(health) = iter.next() {
+        println!("{health:?}");
+    }
 
     // Check that we still own the world
     drop(world);
@@ -108,8 +125,8 @@ mod collection {
     }
 
     impl<T> Storage<T> for Collection<T> {
+        type Family = CollectionFamily;
         type Id = Id;
-
         type IdIter = std::vec::IntoIter<Id>;
 
         type Iterator<'a> = std::collections::hash_map::Values<'a, Id, T>

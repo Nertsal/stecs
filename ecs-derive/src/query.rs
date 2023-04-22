@@ -106,7 +106,7 @@ impl QueryOpts {
                     fn ids(&self) -> F::IdIter {
                         #ids
                     }
-                    fn get(&self, id: F::Id) -> Option<Self::Item<'_>> {
+                    fn get(&mut self, id: F::Id) -> Option<Self::Item<'_>> {
                         #(#get)*
                     }
                 }
@@ -144,14 +144,23 @@ impl QueryOpts {
                 })
                 .collect::<Vec<_>>();
 
+            let get_phantom_data = query_fields
+                .first()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    quote! { #name.phantom_data() }
+                })
+                .expect("Expected at least one field");
+
             quote! {
                 macro_rules! #macro_name {
                     ($structof: expr) => {{
+                        let phantom_data = $structof.inner.#get_phantom_data;
                         let components = ::ecs::query_components!(
                             $structof,
                             #query_components_name,
                             (#(#fields),*),
-                            { phantom_data: $structof.phantom_data() }
+                            { phantom_data: phantom_data }
                         );
                         #query_name::query(components)
                     }}

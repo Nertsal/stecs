@@ -23,7 +23,7 @@ pub trait QueryComponents<F: StorageFamily> {
         Self: 'a;
 
     fn ids(&self) -> F::IdIter;
-    fn get(&self, id: F::Id) -> Option<Self::Item<'_>>;
+    fn get(&mut self, id: F::Id) -> Option<Self::Item<'_>>;
 }
 
 pub struct Query<'a, Q: StructQuery<F>, F: StorageFamily> {
@@ -31,17 +31,20 @@ pub struct Query<'a, Q: StructQuery<F>, F: StorageFamily> {
 }
 
 impl<'a, Q: StructQuery<F>, F: StorageFamily> Query<'a, Q, F> {
-    pub fn get(&self, id: F::Id) -> Option<<Q::Components<'a> as QueryComponents<F>>::Item<'_>> {
+    pub fn get(
+        &mut self,
+        id: F::Id,
+    ) -> Option<<Q::Components<'a> as QueryComponents<F>>::Item<'_>> {
         self.components.get(id)
     }
 
-    pub fn iter(&self) -> QueryIter<'a, '_, Q, F>
+    pub fn iter(&mut self) -> QueryIter<'a, '_, Q, F>
     where
         Self: Sized,
     {
         QueryIter {
             ids: self.components.ids(),
-            components: &self.components,
+            components: &mut self.components,
         }
     }
 }

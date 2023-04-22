@@ -3,8 +3,8 @@ use crate::archetype::{SplitFields, StructOfAble};
 use super::*;
 
 impl<T> Storage<T> for Vec<T> {
+    type Family = VecFamily;
     type Id = usize;
-
     type IdIter = std::ops::Range<usize>;
 
     type Iterator<'a> = <&'a [T] as IntoIterator>::IntoIter where Self: 'a, T: 'a;
