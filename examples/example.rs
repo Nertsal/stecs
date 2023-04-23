@@ -74,12 +74,12 @@ fn main() {
     println!("\nHealths:");
     let mut query = query_health_ref!(world.units);
     let mut iter = query.iter_mut();
-    while let Some(health) = iter.next() {
+    while let Some((_, health)) = iter.next() {
         println!("Updating {health:?}");
         println!("  Inner query over ticks:");
         let mut query = query_tick_ref!(world.units);
         let mut iter = query.iter_mut();
-        while let Some(tick) = iter.next() {
+        while let Some((_, tick)) = iter.next() {
             println!("  Incrementing {tick:?}");
             *tick.tick += 1;
         }
@@ -123,12 +123,12 @@ mod collection {
         type Id = Id;
         type IdIter = std::vec::IntoIter<Id>;
 
-        type Iterator<'a> = std::collections::hash_map::Values<'a, Id, T>
+        type Iterator<'a> = std::iter::Map<std::collections::hash_map::Iter<'a, Id, T>, fn((&Id, &'a T)) -> (Id, &'a T)>
         where
             Self: 'a,
             T: 'a;
 
-        type IteratorMut<'a> = std::collections::hash_map::ValuesMut<'a, Id, T>
+        type IteratorMut<'a> = std::iter::Map<std::collections::hash_map::IterMut<'a, Id, T>, fn((&Id, &'a mut T)) -> (Id, &'a mut T)>
         where
             Self: 'a,
             T: 'a;
@@ -161,12 +161,20 @@ mod collection {
         }
 
         fn iter(&self) -> Self::Iterator<'_> {
-            self.inner.values()
+            self.inner.iter().map(copy_id)
         }
 
         fn iter_mut(&mut self) -> Self::IteratorMut<'_> {
-            self.inner.values_mut()
+            self.inner.iter_mut().map(copy_id_mut)
         }
+    }
+
+    fn copy_id<'a, T>((&id, v): (&Id, &'a T)) -> (Id, &'a T) {
+        (id, v)
+    }
+
+    fn copy_id_mut<'a, T>((&id, v): (&Id, &'a mut T)) -> (Id, &'a mut T) {
+        (id, v)
     }
 
     pub struct CollectionFamily;

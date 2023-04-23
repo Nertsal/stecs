@@ -7,9 +7,9 @@ impl<T> Storage<T> for Vec<T> {
     type Id = usize;
     type IdIter = std::ops::Range<usize>;
 
-    type Iterator<'a> = <&'a [T] as IntoIterator>::IntoIter where Self: 'a, T: 'a;
+    type Iterator<'a> = std::iter::Enumerate<std::slice::Iter<'a, T>> where Self: 'a, T: 'a;
 
-    type IteratorMut<'a> = <&'a mut [T] as IntoIterator>::IntoIter where Self: 'a, T: 'a;
+    type IteratorMut<'a> = std::iter::Enumerate<std::slice::IterMut<'a, T>> where Self: 'a, T: 'a;
 
     fn insert(&mut self, value: T) -> Self::Id {
         let id = self.len();
@@ -34,11 +34,11 @@ impl<T> Storage<T> for Vec<T> {
     }
 
     fn iter(&self) -> Self::Iterator<'_> {
-        self.as_slice().iter()
+        self.as_slice().iter().enumerate()
     }
 
     fn iter_mut(&mut self) -> Self::IteratorMut<'_> {
-        self.as_mut_slice().iter_mut()
+        self.as_mut_slice().iter_mut().enumerate()
     }
 }
 

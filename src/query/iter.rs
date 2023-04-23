@@ -13,11 +13,15 @@ pub struct QueryIterMut<'comp: 'iter, 'iter, Q: StructQuery<F>, F: StorageFamily
 impl<'comp: 'iter, 'iter, Q: StructQuery<F>, F: StorageFamily> Iterator
     for QueryIter<'comp, 'iter, Q, F>
 {
-    type Item = <Q::Components<'comp> as QueryComponents<F>>::ItemReadOnly<'iter>;
+    type Item = (
+        F::Id,
+        <Q::Components<'comp> as QueryComponents<F>>::ItemReadOnly<'iter>,
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         let id = self.ids.next()?;
-        self.components.get(id)
+        let item = self.components.get(id)?;
+        Some((id, item))
     }
 }
 
@@ -32,8 +36,14 @@ impl<'w, 'a, Q: StructQuery<F>, F: StorageFamily> IntoIterator for &'w Query<'a,
 }
 
 impl<'comp: 'iter, 'iter, Q: StructQuery<F>, F: StorageFamily> QueryIterMut<'comp, 'iter, Q, F> {
-    pub fn next(&mut self) -> Option<<Q::Components<'comp> as QueryComponents<F>>::Item<'_>> {
+    pub fn next(
+        &mut self,
+    ) -> Option<(
+        F::Id,
+        <Q::Components<'comp> as QueryComponents<F>>::Item<'_>,
+    )> {
         let id = self.ids.next()?;
-        self.components.get_mut(id)
+        let item = self.components.get_mut(id)?;
+        Some((id, item))
     }
 }

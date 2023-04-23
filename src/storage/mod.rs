@@ -7,11 +7,11 @@ pub trait Storage<T>: Default {
     type Family: StorageFamily;
     type Id: Copy;
     type IdIter: Iterator<Item = Self::Id>;
-    type Iterator<'a>: Iterator<Item = &'a T> + 'a
+    type Iterator<'a>: Iterator<Item = (Self::Id, &'a T)> + 'a
     where
         Self: 'a,
         T: 'a;
-    type IteratorMut<'a>: Iterator<Item = &'a mut T> + 'a
+    type IteratorMut<'a>: Iterator<Item = (Self::Id, &'a mut T)> + 'a
     where
         Self: 'a,
         T: 'a;
