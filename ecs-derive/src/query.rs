@@ -31,6 +31,44 @@ impl QueryOpts {
             .expect("Expected a struct with named fields")
             .fields;
 
+        let is_mut = query_fields.iter().any(|field| {
+            let syn::Type::Reference(ty) = &field.ty else {
+                panic!("Expected a reference");
+            };
+            ty.mutability.is_some()
+        });
+
+        let (query_readonly, query_readonly_name) = if !is_mut {
+            (quote! {}, query_name.clone())
+        } else {
+            let query_readonly_name = syn::Ident::new(
+                &format!("{query_name}ReadOnly"),
+                proc_macro2::Span::call_site(),
+            );
+
+            let fields = query_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    let syn::Type::Reference(refer) = &field.ty else {
+                    panic!("Expected a reference");
+                };
+                    let ty = &*refer.elem;
+                    quote! { #name: &'a #ty, }
+                })
+                .collect::<Vec<_>>();
+
+            (
+                quote! {
+                    #[derive(Debug)]
+                    struct #query_readonly_name<'a> {
+                        #(#fields)*
+                    }
+                },
+                query_readonly_name,
+            )
+        };
+
         let struct_query = quote! {
             impl<'b, F: StorageFamily + 'static> StructQuery<F> for #query_name<'b> {
                 type Components<'a> = #query_components_name<'a, F>;
@@ -74,7 +112,26 @@ impl QueryOpts {
                 })
                 .expect("Expected at least one field");
 
+            let fields = query_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    quote! { #name }
+                })
+                .collect::<Vec<_>>();
+
             let mut get = query_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    quote! { let #name = self.#name.get(id)?; }
+                })
+                .collect::<Vec<_>>();
+            get.push(quote! {
+                Some(Self::ItemReadOnly { #(#fields),* })
+            });
+
+            let mut get_mut = query_fields
                 .iter()
                 .map(|field| {
                     let name = field.ident.as_ref().unwrap();
@@ -89,25 +146,22 @@ impl QueryOpts {
                     }
                 })
                 .collect::<Vec<_>>();
-            let fields = query_fields
-                .iter()
-                .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    quote! { #name }
-                })
-                .collect::<Vec<_>>();
-            get.push(quote! {
+            get_mut.push(quote! {
                 Some(Self::Item { #(#fields),* })
             });
 
             quote! {
                 impl<'b, F: StorageFamily> QueryComponents<F> for #query_components_name<'b, F> {
                     type Item<'a> = #query_name<'a> where Self: 'a;
+                    type ItemReadOnly<'a> = #query_readonly_name<'a> where Self: 'a;
                     fn ids(&self) -> F::IdIter {
                         #ids
                     }
-                    fn get(&mut self, id: F::Id) -> Option<Self::Item<'_>> {
+                    fn get(&self, id: F::Id) -> Option<Self::ItemReadOnly<'_>> {
                         #(#get)*
+                    }
+                    fn get_mut(&mut self, id: F::Id) -> Option<Self::Item<'_>> {
+                        #(#get_mut)*
                     }
                 }
             }
@@ -170,6 +224,7 @@ impl QueryOpts {
 
         let mut generated = TokenStream::new();
         generated.append_all(struct_query);
+        generated.append_all(query_readonly);
         generated.append_all(components);
         generated.append_all(query_components);
         generated.append_all(query_macro);

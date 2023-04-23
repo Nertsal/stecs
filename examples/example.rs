@@ -62,27 +62,23 @@ fn main() {
     }
 
     println!("Units:");
-    let mut query = query_unit_ref!(world.units);
-    let mut iter = query.iter();
-    while let Some(unit) = iter.next() {
+    for unit in &query_unit_ref!(world.units) {
         println!("{unit:?}");
     }
 
     println!("\nParticles:");
-    let mut query = query_particle_ref!(world.particles);
-    let mut iter = query.iter();
-    while let Some(particle) = iter.next() {
+    for particle in &query_particle_ref!(world.particles) {
         println!("{particle:?}");
     }
 
     println!("\nHealths:");
     let mut query = query_health_ref!(world.units);
-    let mut iter = query.iter();
+    let mut iter = query.iter_mut();
     while let Some(health) = iter.next() {
         println!("Updating {health:?}");
         println!("  Inner query over ticks:");
         let mut query = query_tick_ref!(world.units);
-        let mut iter = query.iter();
+        let mut iter = query.iter_mut();
         while let Some(tick) = iter.next() {
             println!("  Incrementing {tick:?}");
             *tick.tick += 1;
@@ -91,9 +87,7 @@ fn main() {
     }
 
     println!("\nUpdated healths");
-    let mut query = query_health_ref!(world.units);
-    let mut iter = query.iter();
-    while let Some(health) = iter.next() {
+    for health in &query_health_ref!(world.units) {
         println!("{health:?}");
     }
 
