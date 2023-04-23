@@ -43,7 +43,7 @@ impl StructOfOpts {
                     let name = field.ident.as_ref().expect("Expected named fields");
                     let ty = &field.ty;
                     quote! {
-                        #name: F::Storage<#ty>
+                        pub #name: F::Storage<#ty>
                     }
                 })
                 .collect::<Vec<_>>();
