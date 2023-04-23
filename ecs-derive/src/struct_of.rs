@@ -30,6 +30,48 @@ impl StructOfOpts {
             proc_macro2::Span::call_site(),
         );
 
+        let struct_ref_name =
+            syn::Ident::new(&format!("{struct_name}Ref"), proc_macro2::Span::call_site());
+        let struct_ref = {
+            let fields = struct_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    let ty = &field.ty;
+                    quote! { pub #name: &'a #ty, }
+                })
+                .collect::<Vec<_>>();
+
+            quote! {
+                #[derive(Debug)]
+                struct #struct_ref_name<'a> {
+                    #(#fields)*
+                }
+            }
+        };
+
+        let struct_ref_mut_name = syn::Ident::new(
+            &format!("{struct_name}RefMut"),
+            proc_macro2::Span::call_site(),
+        );
+        let struct_ref_mut = {
+            let fields = struct_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    let ty = &field.ty;
+                    quote! { pub #name: &'a mut #ty, }
+                })
+                .collect::<Vec<_>>();
+
+            quote! {
+                #[derive(Debug)]
+                struct #struct_ref_mut_name<'a> {
+                    #(#fields)*
+                }
+            }
+        };
+
         let struct_split_fields = quote! {
             impl<F: StorageFamily> SplitFields<F> for #struct_name {
                 type StructOf = #struct_of_name<F>;
@@ -51,6 +93,63 @@ impl StructOfOpts {
             quote! {
                 struct #struct_of_name<F: StorageFamily> {
                     #(#struct_of_fields),*
+                }
+            }
+        };
+
+        let struct_of_impl = {
+            let fields = struct_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    quote! { #name, }
+                })
+                .collect::<Vec<_>>();
+
+            let mut get = struct_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    quote! { let #name = self.#name.get(id)?; }
+                })
+                .collect::<Vec<_>>();
+            get.push(quote! {
+                Some(#struct_ref_name {
+                    #(#fields)*
+                })
+            });
+
+            let mut get_mut = struct_fields
+                .iter()
+                .map(|field| {
+                    let name = field.ident.as_ref().unwrap();
+                    quote! { let #name = self.#name.get_mut(id)?; }
+                })
+                .collect::<Vec<_>>();
+            get_mut.push(quote! {
+                Some(#struct_ref_mut_name {
+                    #(#fields)*
+                })
+            });
+
+            quote! {
+                impl<F: StorageFamily> #struct_of_name<F> {
+                    pub fn get(&self, id: F::Id) -> Option<#struct_ref_name<'_>> {
+                        #(#get)*
+                    }
+
+                    pub fn get_mut(&mut self, id: F::Id) -> Option<#struct_ref_mut_name<'_>> {
+                        #(#get_mut)*
+                    }
+
+                    pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_>)> {
+                        self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
+                    }
+
+                    // TODO
+                    // pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a>)> + 'a {
+                    //     self.ids().filter_map(|id| self.get_mut(id).map(move |item| (id, item)))
+                    // }
                 }
             }
         };
@@ -135,7 +234,10 @@ impl StructOfOpts {
 
         let mut generated = TokenStream::new();
         generated.append_all(struct_split_fields);
+        generated.append_all(struct_ref);
+        generated.append_all(struct_ref_mut);
         generated.append_all(struct_of);
+        generated.append_all(struct_of_impl);
         generated.append_all(struct_of_archetype);
         generated.append_all(struct_of_default);
         generated

@@ -20,17 +20,6 @@ struct Particle {
 }
 
 #[derive(StructQuery, Debug)]
-struct UnitRef<'a> {
-    health: &'a f32,
-    tick: &'a usize,
-}
-
-#[derive(StructQuery, Debug)]
-struct ParticleRef<'a> {
-    time: &'a f32,
-}
-
-#[derive(StructQuery, Debug)]
 struct HealthRef<'a> {
     health: &'a mut f32,
 }
@@ -62,12 +51,12 @@ fn main() {
     }
 
     println!("Units:");
-    for unit in &query_unit_ref!(world.units) {
+    for unit in world.units.iter() {
         println!("{unit:?}");
     }
 
     println!("\nParticles:");
-    for particle in &query_particle_ref!(world.particles) {
+    for particle in world.particles.iter() {
         println!("{particle:?}");
     }
 
