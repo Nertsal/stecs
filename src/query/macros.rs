@@ -32,15 +32,15 @@ macro_rules! query_components_impl {
         })
     };
     // Get the next `mut $field`
-    ($structof: expr, $components: ident, {mut $field: ident, $($fields: tt),+} -> {$($tail_fields: ident: $tail_values: expr),* $(,)*}) => {
-        $crate::query_components_impl!($structof, $components, {$($fields),+} -> {
+    ($structof: expr, $components: ident, {mut $field: ident, $($fields: tt)*} -> {$($tail_fields: ident: $tail_values: expr),* $(,)*}) => {
+        $crate::query_components_impl!($structof, $components, {$($fields)+} -> {
             $field: &mut $structof.$field,
             $($tail_fields: $tail_values),*
         })
     };
     // Get the next `$field`
-    ($structof: expr, $components: ident, {$field: ident, $($fields: tt),+} -> {$($tail_fields: ident: $tail_values: expr),* $(,)*}) => {
-        $crate::query_components_impl!($structof, $components, {$($fields),+} -> {
+    ($structof: expr, $components: ident, {$field: ident, $($fields: tt)*} -> {$($tail_fields: ident: $tail_values: expr),* $(,)*}) => {
+        $crate::query_components_impl!($structof, $components, {$($fields)+} -> {
             $field: &$structof.$field,
             $($tail_fields: $tail_values),*
         })
