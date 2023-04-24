@@ -112,16 +112,6 @@ mod collection {
         type Id = Id;
         type IdIter = std::vec::IntoIter<Id>;
 
-        type Iterator<'a> = std::iter::Map<std::collections::hash_map::Iter<'a, Id, T>, fn((&Id, &'a T)) -> (Id, &'a T)>
-        where
-            Self: 'a,
-            T: 'a;
-
-        type IteratorMut<'a> = std::iter::Map<std::collections::hash_map::IterMut<'a, Id, T>, fn((&Id, &'a mut T)) -> (Id, &'a mut T)>
-        where
-            Self: 'a,
-            T: 'a;
-
         fn ids(&self) -> Self::IdIter {
             self.inner.keys().copied().collect::<Vec<_>>().into_iter()
         }
@@ -149,12 +139,12 @@ mod collection {
             self.inner.remove(&id)
         }
 
-        fn iter(&self) -> Self::Iterator<'_> {
-            self.inner.iter().map(copy_id)
+        fn iter(&self) -> Box<dyn Iterator<Item = (Self::Id, &T)> + '_> {
+            Box::new(self.inner.iter().map(copy_id))
         }
 
-        fn iter_mut(&mut self) -> Self::IteratorMut<'_> {
-            self.inner.iter_mut().map(copy_id_mut)
+        fn iter_mut(&mut self) -> Box<dyn Iterator<Item = (Self::Id, &mut T)> + '_> {
+            Box::new(self.inner.iter_mut().map(copy_id_mut))
         }
     }
 

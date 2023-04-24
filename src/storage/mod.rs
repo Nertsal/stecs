@@ -7,14 +7,6 @@ pub trait Storage<T>: Default {
     type Family: StorageFamily;
     type Id: Copy;
     type IdIter: Iterator<Item = Self::Id>;
-    type Iterator<'a>: Iterator<Item = (Self::Id, &'a T)> + 'a
-    where
-        Self: 'a,
-        T: 'a;
-    type IteratorMut<'a>: Iterator<Item = (Self::Id, &'a mut T)> + 'a
-    where
-        Self: 'a,
-        T: 'a;
 
     fn phantom_data(&self) -> std::marker::PhantomData<Self::Family> {
         Default::default()
@@ -24,8 +16,8 @@ pub trait Storage<T>: Default {
     fn get(&self, id: Self::Id) -> Option<&T>;
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;
     fn remove(&mut self, id: Self::Id) -> Option<T>;
-    fn iter(&self) -> Self::Iterator<'_>;
-    fn iter_mut(&mut self) -> Self::IteratorMut<'_>;
+    fn iter(&self) -> Box<dyn Iterator<Item = (Self::Id, &T)> + '_>;
+    fn iter_mut(&mut self) -> Box<dyn Iterator<Item = (Self::Id, &mut T)> + '_>;
 }
 
 /// A family of storages for different component types.
