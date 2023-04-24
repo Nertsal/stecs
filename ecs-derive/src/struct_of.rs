@@ -4,6 +4,7 @@ use super::*;
 #[darling(supports(struct_named))]
 pub struct StructOfOpts {
     ident: syn::Ident,
+    vis: syn::Visibility,
     data: ast::Data<(), StructOfField>,
 }
 
@@ -17,6 +18,7 @@ impl StructOfOpts {
     pub fn derive(self) -> TokenStream {
         let Self {
             ident: struct_name,
+            vis,
             data: struct_data,
         } = self;
 
@@ -44,7 +46,7 @@ impl StructOfOpts {
 
             quote! {
                 #[derive(Debug)]
-                struct #struct_ref_name<'a> {
+                #vis struct #struct_ref_name<'a> {
                     #(#fields)*
                 }
             }
@@ -66,7 +68,7 @@ impl StructOfOpts {
 
             quote! {
                 #[derive(Debug)]
-                struct #struct_ref_mut_name<'a> {
+                #vis struct #struct_ref_mut_name<'a> {
                     #(#fields)*
                 }
             }
@@ -91,7 +93,7 @@ impl StructOfOpts {
                 .collect::<Vec<_>>();
 
             quote! {
-                struct #struct_of_name<F: StorageFamily> {
+                #vis struct #struct_of_name<F: StorageFamily> {
                     #(#struct_of_fields),*
                 }
             }
