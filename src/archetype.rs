@@ -32,6 +32,12 @@ pub trait SplitFields<F: StorageFamily>: Sized {
     type StructOf: Archetype<F>;
 }
 
+impl<S: StructOfAble> StructOf<S> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 impl<S: StructOfAble> Archetype<S::Family> for StructOf<S> {
     type Item = <<S::Struct as SplitFields<S::Family>>::StructOf as Archetype<S::Family>>::Item;
 
