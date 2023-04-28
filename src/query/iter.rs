@@ -35,6 +35,9 @@ impl<'w, 'a, Q: StructQuery<F>, F: StorageFamily> IntoIterator for &'w Query<'a,
     }
 }
 
+// TODO: impl Iterator
+#[allow(clippy::should_implement_trait)]
+#[allow(clippy::type_complexity)]
 impl<'comp: 'iter, 'iter, Q: StructQuery<F>, F: StorageFamily> QueryIterMut<'comp, 'iter, Q, F> {
     pub fn next(
         &mut self,
