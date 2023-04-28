@@ -23,16 +23,6 @@ struct Particle {
     time: f32,
 }
 
-#[derive(StructQuery, Debug)]
-struct HealthRef<'a> {
-    health: &'a mut f32,
-}
-
-#[derive(StructQuery, Debug)]
-struct TickRef<'a> {
-    tick: &'a mut usize,
-}
-
 fn main() {
     println!("Hello, example!");
 
@@ -52,7 +42,7 @@ fn main() {
         tick: 3,
     });
 
-    for _ in 0..10 {
+    for _ in 0..3 {
         world.particles.insert(Particle {
             pos: (1.0, -0.5),
             time: 1.0,
@@ -71,29 +61,57 @@ fn main() {
         println!("{particle:?}");
     }
 
-    // Iterate mutably over all units' healths
-    println!("\nHealths:");
-    let mut query = query_health_ref!(world.units);
-    let mut iter = query.iter_mut();
-    while let Some((_, health)) = iter.next() {
-        println!("Updating {health:?}");
-
-        // Iterate mutably over all units' ticks
-        println!("  Inner query over ticks:");
-        let mut query = query_tick_ref!(world.units);
-        let mut iter = query.iter_mut();
-        while let Some((_, tick)) = iter.next() {
-            println!("  Incrementing {tick:?}");
-            *tick.tick += 1;
+    // Splitting mutable access to components
+    {
+        #[derive(StructQuery, Debug)]
+        struct HealthRef<'a> {
+            health: &'a mut f32,
         }
 
-        *health.health -= 5.0;
+        #[derive(StructQuery, Debug)]
+        struct TickRef<'a> {
+            tick: &'a mut usize,
+        }
+
+        // Iterate mutably over all units' healths
+        println!("\nHealths:");
+        let mut query = query_health_ref!(world.units);
+        let mut iter = query.iter_mut();
+        while let Some((_, health)) = iter.next() {
+            println!("Updating {health:?}");
+
+            // Iterate mutably over all units' ticks
+            println!("  Inner query over ticks:");
+            let mut query = query_tick_ref!(world.units);
+            let mut iter = query.iter_mut();
+            while let Some((_, tick)) = iter.next() {
+                println!("  Incrementing {tick:?}");
+                *tick.tick += 1;
+            }
+
+            *health.health -= 5.0;
+        }
+
+        // Iterate over all units' healths again
+        println!("\nUpdated healths");
+        for health in &query_health_ref!(world.units) {
+            println!("{health:?}");
+        }
     }
 
-    // Iterate over all units' healths again
-    println!("\nUpdated healths");
-    for health in &query_health_ref!(world.units) {
-        println!("{health:?}");
+    // Query multiple entity types at the same time
+    {
+        #[derive(StructQuery, Debug)]
+        struct PosRef<'a> {
+            pos: &'a (f32, f32),
+        }
+
+        println!();
+        let units = query_pos_ref!(world.units);
+        let particles = query_pos_ref!(world.particles);
+        for pos in units.values().chain(particles.values()) {
+            println!("{pos:?}");
+        }
     }
 
     // Check that we still own the world

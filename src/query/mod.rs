@@ -68,4 +68,10 @@ impl<'a, Q: StructQuery<F>, F: StorageFamily> Query<'a, Q, F> {
             components: &mut self.components,
         }
     }
+
+    pub fn values(
+        &self,
+    ) -> impl Iterator<Item = <Q::Components<'a> as QueryComponents<F>>::ItemReadOnly<'_>> {
+        self.iter().map(|(_, v)| v)
+    }
 }
