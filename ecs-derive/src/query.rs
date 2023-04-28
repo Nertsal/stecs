@@ -9,9 +9,11 @@ pub struct QueryOpts {
 }
 
 #[derive(FromField)]
+#[darling(attributes(query))]
 struct QueryField {
     ident: Option<syn::Ident>,
     ty: syn::Type,
+    component: Option<syn::Type>,
 }
 
 impl QueryOpts {
@@ -83,8 +85,8 @@ impl QueryOpts {
                     let syn::Type::Reference(refer) = &field.ty else {
                         panic!("Expected a reference");
                     };
-                    let ty = &refer.elem;
                     let mutable = refer.mutability.is_some();
+                    let ty = field.component.as_ref().unwrap_or(&refer.elem);
                     if mutable {
                         quote! { #name: &'a mut F::Storage<#ty>, }
                     } else {
@@ -124,7 +126,11 @@ impl QueryOpts {
                 .iter()
                 .map(|field| {
                     let name = field.ident.as_ref().unwrap();
-                    quote! { let #name = self.#name.get(id)?; }
+                    let syn::Type::Reference(ty) = &field.ty else {
+                        panic!("Expected reference fields");
+                    };
+                    let ty = &ty.elem;
+                    quote! { let #name: &#ty = self.#name.get(id)?.get_component()?; }
                 })
                 .collect::<Vec<_>>();
             get.push(quote! {
@@ -139,10 +145,11 @@ impl QueryOpts {
                         panic!("Expected reference fields");
                     };
                     let mutable = ty.mutability.is_some();
+                    let ty = &ty.elem;
                     if mutable {
-                        quote! { let #name = self.#name.get_mut(id)?; }
+                        quote! { let #name: &mut #ty = self.#name.get_mut(id)?.get_component_mut()?; }
                     } else {
-                        quote! { let #name = self.#name.get(id)?; }
+                        quote! { let #name: &#ty = self.#name.get(id)?.get_component()?; }
                     }
                 })
                 .collect::<Vec<_>>();

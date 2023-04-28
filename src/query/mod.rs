@@ -17,6 +17,29 @@ pub trait StructQuery<F: StorageFamily> {
     }
 }
 
+pub trait ComponentQuery<T> {
+    fn get_component(&self) -> Option<&T>;
+    fn get_component_mut(&mut self) -> Option<&mut T>;
+}
+
+impl<T> ComponentQuery<T> for T {
+    fn get_component(&self) -> Option<&T> {
+        Some(self)
+    }
+    fn get_component_mut(&mut self) -> Option<&mut T> {
+        Some(self)
+    }
+}
+
+impl<T> ComponentQuery<T> for Option<T> {
+    fn get_component(&self) -> Option<&T> {
+        self.as_ref()
+    }
+    fn get_component_mut(&mut self) -> Option<&mut T> {
+        self.as_mut()
+    }
+}
+
 pub trait QueryComponents<F: StorageFamily> {
     type Item<'a>
     where

@@ -15,6 +15,7 @@ struct Unit {
     pos: (f32, f32),
     health: f32,
     tick: usize,
+    damage: Option<f32>,
 }
 
 #[derive(StructOf, Debug)]
@@ -35,11 +36,13 @@ fn main() {
         pos: (0.0, 0.0),
         health: 10.0,
         tick: 7,
+        damage: None,
     });
     world.units.insert(Unit {
         pos: (1.0, -2.0),
         health: 15.0,
         tick: 3,
+        damage: Some(1.5),
     });
 
     for _ in 0..3 {
@@ -59,6 +62,21 @@ fn main() {
     println!("\nParticles:");
     for particle in world.particles.iter() {
         println!("{particle:?}");
+    }
+
+    // Query an optional field
+    {
+        #[derive(StructQuery, Debug)]
+        struct HealthDamageRef<'a> {
+            health: &'a f32,
+            #[query(component = "Option<f32>")]
+            damage: &'a f32,
+        }
+
+        println!("\nHealth with damage:");
+        for item in &query_health_damage_ref!(world.units) {
+            println!("{item:?}");
+        }
     }
 
     // Splitting mutable access to components
