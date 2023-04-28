@@ -12,12 +12,14 @@ struct GameWorld {
 #[derive(StructOf, Debug)]
 struct Unit {
     // id: Id,
+    pos: (f32, f32),
     health: f32,
     tick: usize,
 }
 
 #[derive(StructOf, Debug)]
 struct Particle {
+    pos: (f32, f32),
     time: f32,
 }
 
@@ -35,38 +37,48 @@ fn main() {
     println!("Hello, example!");
 
     let mut world = GameWorld {
-        units: Default::default(),
-        particles: Default::default(),
+        units: StructOf::new(),
+        particles: StructOf::new(),
     };
 
     world.units.insert(Unit {
+        pos: (0.0, 0.0),
         health: 10.0,
         tick: 7,
     });
     world.units.insert(Unit {
+        pos: (1.0, -2.0),
         health: 15.0,
         tick: 3,
     });
 
     for _ in 0..10 {
-        world.particles.insert(Particle { time: 1.0 });
+        world.particles.insert(Particle {
+            pos: (1.0, -0.5),
+            time: 1.0,
+        });
     }
 
+    // Iterate over all fields of all units
     println!("Units:");
     for unit in world.units.iter() {
         println!("{unit:?}");
     }
 
+    // Iterate over all fields of all particles
     println!("\nParticles:");
     for particle in world.particles.iter() {
         println!("{particle:?}");
     }
 
+    // Iterate mutably over all units' healths
     println!("\nHealths:");
     let mut query = query_health_ref!(world.units);
     let mut iter = query.iter_mut();
     while let Some((_, health)) = iter.next() {
         println!("Updating {health:?}");
+
+        // Iterate mutably over all units' ticks
         println!("  Inner query over ticks:");
         let mut query = query_tick_ref!(world.units);
         let mut iter = query.iter_mut();
@@ -74,9 +86,11 @@ fn main() {
             println!("  Incrementing {tick:?}");
             *tick.tick += 1;
         }
+
         *health.health -= 5.0;
     }
 
+    // Iterate over all units' healths again
     println!("\nUpdated healths");
     for health in &query_health_ref!(world.units) {
         println!("{health:?}");
@@ -142,20 +156,12 @@ mod collection {
         }
 
         fn iter(&self) -> Box<dyn Iterator<Item = (Self::Id, &T)> + '_> {
-            Box::new(self.inner.iter().map(copy_id))
+            Box::new(self.inner.iter().map(|(&id, v)| (id, v)))
         }
 
         fn iter_mut(&mut self) -> Box<dyn Iterator<Item = (Self::Id, &mut T)> + '_> {
-            Box::new(self.inner.iter_mut().map(copy_id_mut))
+            Box::new(self.inner.iter_mut().map(|(&id, v)| (id, v)))
         }
-    }
-
-    fn copy_id<'a, T>((&id, v): (&Id, &'a T)) -> (Id, &'a T) {
-        (id, v)
-    }
-
-    fn copy_id_mut<'a, T>((&id, v): (&Id, &'a mut T)) -> (Id, &'a mut T) {
-        (id, v)
     }
 
     pub struct CollectionFamily;
