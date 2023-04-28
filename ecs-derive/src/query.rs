@@ -1,26 +1,91 @@
 use super::*;
 
 #[derive(FromDeriveInput)]
-// #[darling(attributes(query), supports(struct_named))]
+#[darling(supports(struct_named))]
 pub struct QueryOpts {
     ident: syn::Ident,
-    data: ast::Data<(), QueryField>,
-    // base: syn::Ident,
+    data: ast::Data<(), FieldOpts>,
 }
 
-#[derive(FromField)]
+#[derive(FromField, Debug)]
 #[darling(attributes(query))]
-struct QueryField {
+struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
     component: Option<syn::Type>,
 }
 
+struct Query {
+    name: syn::Ident,
+    fields: Vec<Field>,
+}
+
+struct Field {
+    name: syn::Ident,
+    is_mutable: bool,
+    ty: syn::Type,
+    component: Option<syn::Type>,
+}
+
+#[derive(thiserror::Error, Debug)]
+enum ParseError {
+    #[error("not a struct")]
+    NotAStruct,
+    #[error("field has no name")]
+    NamelessField,
+    #[error("struct has no fields, expected at least 1")]
+    ZeroFields,
+    #[error("field `{name}` is neither a `&` or a `&mut`")]
+    FieldNotRef { name: syn::Ident },
+}
+
+impl TryFrom<QueryOpts> for Query {
+    type Error = ParseError;
+
+    fn try_from(value: QueryOpts) -> Result<Self, Self::Error> {
+        let fields = value
+            .data
+            .take_struct()
+            .ok_or(ParseError::NotAStruct)?
+            .fields;
+        if fields.is_empty() {
+            return Err(ParseError::ZeroFields);
+        }
+        let fields = fields
+            .into_iter()
+            .map(|field| {
+                let name = field.ident.ok_or(ParseError::NamelessField)?;
+                let syn::Type::Reference(refer) = field.ty else {
+                    return Err(ParseError::FieldNotRef { name });
+                };
+                let is_mutable = refer.mutability.is_some();
+                Ok(Field {
+                    name,
+                    is_mutable,
+                    ty: *refer.elem,
+                    component: field.component,
+                })
+            })
+            .collect::<Result<Vec<Field>, ParseError>>()?;
+        Ok(Self {
+            name: value.ident,
+            fields,
+        })
+    }
+}
+
 impl QueryOpts {
     pub fn derive(self) -> TokenStream {
+        let query = Query::try_from(self).unwrap_or_else(|err| panic!("{err}"));
+        query.derive()
+    }
+}
+
+impl Query {
+    pub fn derive(self) -> TokenStream {
         let Self {
-            ident: query_name,
-            data: query_data,
+            name: query_name,
+            fields: query_fields,
         } = self;
 
         let query_components_name = syn::Ident::new(
@@ -28,17 +93,7 @@ impl QueryOpts {
             proc_macro2::Span::call_site(),
         );
 
-        let query_fields = query_data
-            .take_struct()
-            .expect("Expected a struct with named fields")
-            .fields;
-
-        let is_mut = query_fields.iter().any(|field| {
-            let syn::Type::Reference(ty) = &field.ty else {
-                panic!("Expected a reference");
-            };
-            ty.mutability.is_some()
-        });
+        let is_mut = query_fields.iter().any(|field| field.is_mutable);
 
         let (query_readonly, query_readonly_name) = if !is_mut {
             (quote! {}, query_name.clone())
@@ -51,11 +106,8 @@ impl QueryOpts {
             let fields = query_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    let syn::Type::Reference(refer) = &field.ty else {
-                    panic!("Expected a reference");
-                };
-                    let ty = &*refer.elem;
+                    let name = &field.name;
+                    let ty = &field.ty;
                     quote! { #name: &'a #ty, }
                 })
                 .collect::<Vec<_>>();
@@ -81,12 +133,9 @@ impl QueryOpts {
             let fields = query_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    let syn::Type::Reference(refer) = &field.ty else {
-                        panic!("Expected a reference");
-                    };
-                    let mutable = refer.mutability.is_some();
-                    let ty = field.component.as_ref().unwrap_or(&refer.elem);
+                    let name = &field.name;
+                    let mutable = field.is_mutable;
+                    let ty = field.component.as_ref().unwrap_or(&field.ty);
                     if mutable {
                         quote! { #name: &'a mut F::Storage<#ty>, }
                     } else {
@@ -107,17 +156,15 @@ impl QueryOpts {
             let ids = query_fields
                 .first()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    quote! {
-                        self.#name.ids()
-                    }
+                    let name = &field.name;
+                    quote! { self.#name.ids() }
                 })
                 .expect("Expected at least one field");
 
             let fields = query_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! { #name }
                 })
                 .collect::<Vec<_>>();
@@ -125,11 +172,8 @@ impl QueryOpts {
             let mut get = query_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    let syn::Type::Reference(ty) = &field.ty else {
-                        panic!("Expected reference fields");
-                    };
-                    let ty = &ty.elem;
+                    let name = &field.name;
+                    let ty = &field.ty;
                     quote! { let #name: &#ty = self.#name.get(id)?.get_component()?; }
                 })
                 .collect::<Vec<_>>();
@@ -140,12 +184,9 @@ impl QueryOpts {
             let mut get_mut = query_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    let syn::Type::Reference(ty) = &field.ty else {
-                        panic!("Expected reference fields");
-                    };
-                    let mutable = ty.mutability.is_some();
-                    let ty = &ty.elem;
+                    let name = &field.name;
+                    let mutable = field.is_mutable;
+                    let ty = &field.ty;
                     if mutable {
                         quote! { let #name: &mut #ty = self.#name.get_mut(id)?.get_component_mut()?; }
                     } else {
@@ -192,11 +233,8 @@ impl QueryOpts {
             let fields = query_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    let syn::Type::Reference(ty) = &field.ty else {
-                        panic!("Expected reference fields");
-                    };
-                    let mutable = ty.mutability.is_some();
+                    let name = &field.name;
+                    let mutable = field.is_mutable;
                     if mutable {
                         quote! { mut #name }
                     } else {
@@ -208,7 +246,7 @@ impl QueryOpts {
             let get_phantom_data = query_fields
                 .first()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! { #name.phantom_data() }
                 })
                 .expect("Expected at least one field");

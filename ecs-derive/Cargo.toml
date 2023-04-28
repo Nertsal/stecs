@@ -12,3 +12,4 @@ proc-macro = true
 darling = "0.14.4"
 proc-macro2 = "1.0.56"
 quote = "1.0.26"
+thiserror = "1.0.40"
