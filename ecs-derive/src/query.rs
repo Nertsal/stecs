@@ -115,6 +115,7 @@ impl Query {
             (
                 quote! {
                     #[derive(Debug)]
+                    #[allow(dead_code)]
                     struct #query_readonly_name<'a> {
                         #(#fields)*
                     }
