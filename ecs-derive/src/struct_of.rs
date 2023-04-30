@@ -2,30 +2,75 @@ use super::*;
 
 #[derive(FromDeriveInput)]
 #[darling(supports(struct_named))]
-pub struct StructOfOpts {
+pub struct StructOpts {
     ident: syn::Ident,
     vis: syn::Visibility,
-    data: ast::Data<(), StructOfField>,
+    data: ast::Data<(), FieldOpts>,
 }
 
 #[derive(FromField)]
-struct StructOfField {
+struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
 }
 
-impl StructOfOpts {
+struct Struct {
+    name: syn::Ident,
+    visibility: syn::Visibility,
+    fields: Vec<Field>,
+}
+
+struct Field {
+    name: syn::Ident,
+    ty: syn::Type,
+}
+
+#[derive(thiserror::Error, Debug)]
+enum ParseError {
+    #[error("not a struct")]
+    NotAStruct,
+    #[error("field has no name")]
+    NamelessField,
+}
+
+impl TryFrom<StructOpts> for Struct {
+    type Error = ParseError;
+
+    fn try_from(value: StructOpts) -> Result<Self, Self::Error> {
+        let fields = value
+            .data
+            .take_struct()
+            .ok_or(ParseError::NotAStruct)?
+            .fields;
+        let fields = fields
+            .into_iter()
+            .map(|field| {
+                let name = field.ident.ok_or(ParseError::NamelessField)?;
+                Ok(Field { name, ty: field.ty })
+            })
+            .collect::<Result<Vec<Field>, ParseError>>()?;
+        Ok(Self {
+            name: value.ident,
+            visibility: value.vis,
+            fields,
+        })
+    }
+}
+
+impl StructOpts {
+    pub fn derive(self) -> TokenStream {
+        let query = Struct::try_from(self).unwrap_or_else(|err| panic!("{err}"));
+        query.derive()
+    }
+}
+
+impl Struct {
     pub fn derive(self) -> TokenStream {
         let Self {
-            ident: struct_name,
-            vis,
-            data: struct_data,
+            name: struct_name,
+            visibility: vis,
+            fields: struct_fields,
         } = self;
-
-        let struct_fields = struct_data
-            .take_struct()
-            .expect("StructOf only works for structs")
-            .fields;
 
         let struct_of_name = syn::Ident::new(
             &format!("{struct_name}StructOf"),
@@ -38,7 +83,7 @@ impl StructOfOpts {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     let ty = &field.ty;
                     quote! { pub #name: &'a #ty, }
                 })
@@ -60,7 +105,7 @@ impl StructOfOpts {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     let ty = &field.ty;
                     quote! { pub #name: &'a mut #ty, }
                 })
@@ -84,7 +129,7 @@ impl StructOfOpts {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().expect("Expected named fields");
+                    let name = &field.name;
                     let ty = &field.ty;
                     quote! {
                         pub #name: F::Storage<#ty>
@@ -109,7 +154,7 @@ impl StructOfOpts {
                 .collect::<Vec<_>>();
 
             let clone = struct_fields.iter().map(|field| {
-                let name = field.ident.as_ref().unwrap();
+                let name = &field.name;
                 quote! { #name: self.#name.clone(), }
             });
 
@@ -131,7 +176,7 @@ impl StructOfOpts {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! { #name, }
                 })
                 .collect::<Vec<_>>();
@@ -139,7 +184,7 @@ impl StructOfOpts {
             let mut get = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! { let #name = self.#name.get(id)?; }
                 })
                 .collect::<Vec<_>>();
@@ -152,7 +197,7 @@ impl StructOfOpts {
             let mut get_mut = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! { let #name = self.#name.get_mut(id)?; }
                 })
                 .collect::<Vec<_>>();
@@ -188,7 +233,7 @@ impl StructOfOpts {
             let mut insert = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! {
                         let id = self.#name.insert(value.#name);
                     }
@@ -199,7 +244,7 @@ impl StructOfOpts {
             let mut remove = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! {
                         let #name = self.#name.remove(id)?;
                     }
@@ -208,7 +253,7 @@ impl StructOfOpts {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! {#name}
                 })
                 .collect::<Vec<_>>();
@@ -217,7 +262,7 @@ impl StructOfOpts {
             let ids = struct_fields
                 .first()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! {
                         self.#name.ids()
                     }
@@ -244,7 +289,7 @@ impl StructOfOpts {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
-                    let name = field.ident.as_ref().unwrap();
+                    let name = &field.name;
                     quote! {
                         #name: Default::default()
                     }
