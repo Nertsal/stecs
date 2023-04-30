@@ -5,7 +5,7 @@ use super::*;
 impl<T> Storage<T> for Vec<T> {
     type Family = VecFamily;
     type Id = usize;
-    type IdIter = std::ops::Range<usize>;
+    type IdIter = std::iter::Rev<std::ops::Range<usize>>;
 
     fn insert(&mut self, value: T) -> Self::Id {
         let id = self.len();
@@ -14,7 +14,7 @@ impl<T> Storage<T> for Vec<T> {
     }
 
     fn ids(&self) -> Self::IdIter {
-        0..self.len()
+        (0..self.len()).rev()
     }
 
     fn get(&self, id: Self::Id) -> Option<&T> {
@@ -42,7 +42,7 @@ pub struct VecFamily;
 
 impl StorageFamily for VecFamily {
     type Id = usize;
-    type IdIter = std::ops::Range<usize>;
+    type IdIter = std::iter::Rev<std::ops::Range<usize>>;
     type Storage<T> = Vec<T>;
 }
 
