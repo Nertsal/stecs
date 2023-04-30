@@ -217,6 +217,11 @@ impl Struct {
                         #(#get_mut)*
                     }
 
+                    // TODO: impl IntoIterator
+                    pub fn into_iter(mut self) -> impl Iterator<Item = (F::Id, #struct_name)> where F: 'static {
+                        self.ids().filter_map(move |id| self.remove(id).map(move |item| (id, item)))
+                    }
+
                     pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_>)> {
                         self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }

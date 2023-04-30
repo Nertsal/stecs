@@ -4,7 +4,7 @@ use ecs::prelude::*;
 
 use collection::Collection;
 
-#[derive(Clone)]
+#[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {
     units: StructOf<Collection<Unit>>, // UnitStructOf<CollectionFamily>,
     particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
@@ -133,8 +133,10 @@ fn main() {
         }
     }
 
-    // Check that we still own the world
-    drop(world);
+    println!("\nTaking back ownership of all units:");
+    for unit in world.units.inner.into_iter() {
+        println!("{unit:?}");
+    }
 }
 
 /// Collection storage.
