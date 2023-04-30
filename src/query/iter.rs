@@ -19,9 +19,12 @@ impl<'comp: 'iter, 'iter, Q: StructQuery<F>, F: StorageFamily> Iterator
     );
 
     fn next(&mut self) -> Option<Self::Item> {
-        let id = self.ids.next()?;
-        let item = self.components.get(id)?;
-        Some((id, item))
+        loop {
+            let id = self.ids.next()?;
+            if let Some(item) = self.components.get(id) {
+                return Some((id, item));
+            }
+        }
     }
 }
 
@@ -45,8 +48,14 @@ impl<'comp: 'iter, 'iter, Q: StructQuery<F>, F: StorageFamily> QueryIterMut<'com
         F::Id,
         <Q::Components<'comp> as QueryComponents<F>>::Item<'_>,
     )> {
-        let id = self.ids.next()?;
-        let item = self.components.get_mut(id)?;
-        Some((id, item))
+        loop {
+            let id = self.ids.next()?;
+            if self.components.get(id).is_some() {
+                // To overcome borrow checker
+                // Specifically long lasting mutable borrows from `get_mut`
+                let item = self.components.get_mut(id).unwrap();
+                return Some((id, item));
+            }
+        }
     }
 }

@@ -185,9 +185,8 @@ impl Query {
                 .iter()
                 .map(|field| {
                     let name = &field.name;
-                    let mutable = field.is_mutable;
                     let ty = &field.ty;
-                    if mutable {
+                    if field.is_mutable {
                         quote! { let #name: &mut #ty = self.#name.get_mut(id)?.get_component_mut()?; }
                     } else {
                         quote! { let #name: &#ty = self.#name.get(id)?.get_component()?; }
@@ -234,8 +233,7 @@ impl Query {
                 .iter()
                 .map(|field| {
                     let name = &field.name;
-                    let mutable = field.is_mutable;
-                    if mutable {
+                    if field.is_mutable {
                         quote! { mut #name }
                     } else {
                         quote! { #name }
