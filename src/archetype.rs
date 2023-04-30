@@ -73,3 +73,14 @@ impl<S: StructOfAble> Default for StructOf<S> {
         }
     }
 }
+
+impl<S: StructOfAble> Clone for StructOf<S>
+where
+    <S::Struct as SplitFields<S::Family>>::StructOf: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}

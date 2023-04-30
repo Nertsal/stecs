@@ -4,6 +4,7 @@ use ecs::prelude::*;
 
 use collection::Collection;
 
+#[derive(Clone)]
 struct GameWorld {
     units: StructOf<Collection<Unit>>, // UnitStructOf<CollectionFamily>,
     particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
@@ -145,6 +146,7 @@ mod collection {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Id(u64);
 
+    #[derive(Clone)]
     pub struct Collection<T> {
         next_id: Id,
         inner: HashMap<Id, T>,

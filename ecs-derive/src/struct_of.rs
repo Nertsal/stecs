@@ -81,7 +81,7 @@ impl StructOfOpts {
         };
 
         let struct_of = {
-            let struct_of_fields = struct_fields
+            let fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = field.ident.as_ref().expect("Expected named fields");
@@ -94,7 +94,35 @@ impl StructOfOpts {
 
             quote! {
                 #vis struct #struct_of_name<F: StorageFamily> {
-                    #(#struct_of_fields),*
+                    #(#fields),*
+                }
+            }
+        };
+
+        let struct_of_clone = {
+            let constraints = struct_fields
+                .iter()
+                .map(|field| {
+                    let ty = &field.ty;
+                    quote! { F::Storage<#ty>: Clone }
+                })
+                .collect::<Vec<_>>();
+
+            let clone = struct_fields.iter().map(|field| {
+                let name = field.ident.as_ref().unwrap();
+                quote! { #name: self.#name.clone(), }
+            });
+
+            quote! {
+                impl<F: StorageFamily> Clone for #struct_of_name<F>
+                where
+                    #(#constraints),*
+                {
+                    fn clone(&self) -> Self {
+                        Self {
+                            #(#clone)*
+                        }
+                    }
                 }
             }
         };
@@ -239,6 +267,7 @@ impl StructOfOpts {
         generated.append_all(struct_ref);
         generated.append_all(struct_ref_mut);
         generated.append_all(struct_of);
+        generated.append_all(struct_of_clone);
         generated.append_all(struct_of_impl);
         generated.append_all(struct_of_archetype);
         generated.append_all(struct_of_default);
