@@ -70,7 +70,7 @@ fn main() {
         #[derive(StructQuery, Debug)]
         struct HealthDamageRef<'a> {
             health: &'a f32,
-            #[query(component = "Option<f32>")]
+            #[query(optional)] // same as `component = "Option<f32>"`
             damage: &'a f32,
         }
 

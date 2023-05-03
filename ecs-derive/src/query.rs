@@ -12,6 +12,7 @@ pub struct QueryOpts {
 struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
+    optional: Option<()>,
     component: Option<syn::Type>,
 }
 
@@ -24,7 +25,7 @@ struct Field {
     name: syn::Ident,
     is_mutable: bool,
     ty: syn::Type,
-    component: Option<syn::Type>,
+    component: syn::Type,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -37,6 +38,8 @@ enum ParseError {
     ZeroFields,
     #[error("field `{name}` is neither a `&` or a `&mut`")]
     FieldNotRef { name: syn::Ident },
+    #[error("at most one of `component` and `optional` attributes are allowed")]
+    OptionalWithComponent,
 }
 
 impl TryFrom<QueryOpts> for Query {
@@ -55,15 +58,29 @@ impl TryFrom<QueryOpts> for Query {
             .into_iter()
             .map(|field| {
                 let name = field.ident.ok_or(ParseError::NamelessField)?;
+
                 let syn::Type::Reference(refer) = field.ty else {
                     return Err(ParseError::FieldNotRef { name });
                 };
+                let ty = *refer.elem;
                 let is_mutable = refer.mutability.is_some();
+
+                if field.component.is_some() && field.optional.is_some() {
+                    return Err(ParseError::OptionalWithComponent);
+                }
+                let component = field.component.unwrap_or_else(|| {
+                    if field.optional.is_some() {
+                        syn::Type::Verbatim(quote! { Option<#ty> })
+                    } else {
+                        ty.clone()
+                    }
+                });
+
                 Ok(Field {
                     name,
                     is_mutable,
-                    ty: *refer.elem,
-                    component: field.component,
+                    ty,
+                    component,
                 })
             })
             .collect::<Result<Vec<Field>, ParseError>>()?;
@@ -136,7 +153,7 @@ impl Query {
                 .map(|field| {
                     let name = &field.name;
                     let mutable = field.is_mutable;
-                    let ty = field.component.as_ref().unwrap_or(&field.ty);
+                    let ty = &field.component;
                     if mutable {
                         quote! { #name: &'a mut F::Storage<#ty>, }
                     } else {
