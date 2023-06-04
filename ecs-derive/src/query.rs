@@ -17,8 +17,9 @@ pub struct QueryOpts {
 struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
-    r#type: Option<syn::Type>,
-    /// Alias for `optic = "<nested>._get"`.
+    /// Override the component type, for when it cannot be inferred correctly.
+    component: Option<syn::Type>,
+    /// Alias for `optic = "<nested>.<field>._get"`.
     nested: Option<String>,
     optic: Option<String>,
 }
@@ -76,12 +77,15 @@ impl TryFrom<QueryOpts> for Query {
                 let ty = *refer.elem;
                 let is_mutable = refer.mutability.is_some();
 
-                let (mut storage, component) = if let Some(optic) = field.optic {
+                // Parse the provided optic
+                let (mut storage, mut component) = if let Some(optic) = field.optic {
                     Optic::parse_storage_component(&optic)?
                 } else {
                     (None, None)
                 };
 
+                // `storage` acts as a convenient storage-only optic composed with the field name accessor
+                // component optic can still be specified in `optic`
                 if let Some(optic) = field.nested {
                     if storage.is_some() {
                         return Err(ParseError::NestedWithStorage);
@@ -93,14 +97,29 @@ impl TryFrom<QueryOpts> for Query {
                     }));
                 }
 
+                if let Some(comp_ty) = &field.component {
+                    if component.is_none() && ty != *comp_ty {
+                        // The component and the queried field have different types
+                        // Try to automatically access the field in the component
+                        component = Some(Optic::Field {
+                            name: name.clone(),
+                            optic: Box::new(Optic::Id),
+                        });
+                    }
+                }
+
+                // By default, try to access the storage by the name of the field
                 let storage = storage.unwrap_or_else(|| Optic::Field {
                     name: name.clone(),
                     optic: Box::new(Optic::Id),
                 });
+
+                // By default, the component is queried as a whole
                 let component = component.unwrap_or(Optic::Id);
 
+                // Guess the storage type by checking the component optic
                 let storage_type = field
-                    .r#type
+                    .component
                     .unwrap_or_else(|| component.storage_type(ty.clone()));
 
                 Ok(Field {
@@ -141,6 +160,7 @@ impl Query {
 
         let is_mut = query_fields.iter().any(|field| field.is_mutable);
 
+        // Read-only variant
         let (query_readonly, query_readonly_name) = if !is_mut {
             (quote! {}, query_name.clone())
         } else {
@@ -170,12 +190,14 @@ impl Query {
             )
         };
 
+        // impl StructQuery
         let struct_query = quote! {
             impl<'b, F: StorageFamily + 'static> StructQuery<F> for #query_name<'b> {
                 type Components<'a> = #query_components_name<'a, F>;
             }
         };
 
+        // Components structure to hold references to the storages
         let components = {
             let fields = query_fields
                 .iter()
@@ -199,6 +221,7 @@ impl Query {
             }
         };
 
+        // impl QueryComponents
         let query_components = {
             // TODO: check
             let ids = query_fields
@@ -223,7 +246,11 @@ impl Query {
                     let name = &field.name;
                     let access = field.component.access();
                     let ty = &field.ty;
-                    quote! { let #name: &#ty = self.#name.get(id)?#access; }
+                    if field.component.ends_with_field() {
+                        quote! { let #name: &#ty = &self.#name.get(id)?#access; }
+                    } else {
+                        quote! { let #name: &#ty = self.#name.get(id)?#access; }
+                    }
                 })
                 .collect::<Vec<_>>();
             get.push(quote! {
@@ -237,10 +264,18 @@ impl Query {
                     let ty = &field.ty;
                     if field.is_mutable {
                         let access = field.component.access_mut();
-                        quote! { let #name: &mut #ty = self.#name.get_mut(id)?#access; }
+                        if field.component.ends_with_field() {
+                            quote! { let #name: &mut #ty = &mut self.#name.get_mut(id)?#access; }
+                        } else {
+                            quote! { let #name: &mut #ty = self.#name.get_mut(id)?#access; }
+                        }
                     } else {
                         let access = field.component.access();
-                        quote! { let #name: &#ty = self.#name.get(id)?#access; }
+                        if field.component.ends_with_field() {
+                            quote! { let #name: &#ty = &self.#name.get(id)?#access; }
+                        } else {
+                            quote! { let #name: &#ty = self.#name.get(id)?#access; }
+                        }
                     }
                 })
                 .collect::<Vec<_>>();
@@ -265,6 +300,7 @@ impl Query {
             }
         };
 
+        // Macro to query the components from a StructOf
         let query_macro = {
             // Convert the query name to snake_case and append to "query_"
             let query_name_str = query_name.to_string();
@@ -316,9 +352,6 @@ impl Query {
                 }
             }
         };
-
-        // panic!("{}", query_components);
-        // panic!("{}", query_macro);
 
         let mut generated = TokenStream::new();
         generated.append_all(struct_query);

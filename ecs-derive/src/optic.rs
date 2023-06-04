@@ -43,6 +43,18 @@ impl Optic {
         }
     }
 
+    /// Whether the last accessor is field.
+    pub fn ends_with_field(&self) -> bool {
+        match self {
+            Optic::Id => false,
+            Optic::Field { optic, .. } => match &**optic {
+                Optic::Id => true,
+                _ => optic.ends_with_field(),
+            },
+            Optic::Some(optic) => optic.ends_with_field(),
+        }
+    }
+
     /// Access the target component immutably.
     pub fn access(&self) -> TokenStream {
         self.access_impl(false)
@@ -77,6 +89,7 @@ impl Optic {
         match &parts[..] {
             [] => Ok((None, None)),
             [component] => Ok((None, Some(component.parse()?))),
+            [storage, ""] => Ok((Some(storage.parse()?), None)),
             [storage, component] => Ok((Some(storage.parse()?), Some(component.parse()?))),
             _ => Err(ParseError::TooManyGets),
         }
