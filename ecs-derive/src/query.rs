@@ -18,6 +18,8 @@ struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
     r#type: Option<syn::Type>,
+    /// Alias for `optic = "<nested>._get"`.
+    nested: Option<String>,
     optic: Option<String>,
 }
 
@@ -47,6 +49,8 @@ enum ParseError {
     FieldNotRef { name: syn::Ident },
     #[error("optic has invalid syntax: {0}")]
     OpticParse(#[from] optic::ParseError),
+    #[error("cannot have both nested and storage optic specified")]
+    NestedWithStorage,
 }
 
 impl TryFrom<QueryOpts> for Query {
@@ -72,12 +76,24 @@ impl TryFrom<QueryOpts> for Query {
                 let ty = *refer.elem;
                 let is_mutable = refer.mutability.is_some();
 
-                let (storage, component) = if let Some(optic) = field.optic {
+                let (mut storage, component) = if let Some(optic) = field.optic {
                     Optic::parse_storage_component(&optic)?
                 } else {
                     (None, None)
                 };
-                let storage = storage.unwrap_or(Optic::Field {
+
+                if let Some(optic) = field.nested {
+                    if storage.is_some() {
+                        return Err(ParseError::NestedWithStorage);
+                    }
+                    let optic: Optic = optic.parse()?;
+                    storage = Some(optic.compose(Optic::Field {
+                        name: name.clone(),
+                        optic: Box::new(Optic::Id),
+                    }));
+                }
+
+                let storage = storage.unwrap_or_else(|| Optic::Field {
                     name: name.clone(),
                     optic: Box::new(Optic::Id),
                 });

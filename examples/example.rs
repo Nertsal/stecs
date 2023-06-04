@@ -162,7 +162,7 @@ fn main() {
     {
         #[derive(StructQuery, Debug)]
         struct TickRef<'a> {
-            #[query(optic = ".unit.tick._get._id")]
+            #[query(nested = ".unit")] // same as `optic = ".unit.tick._get._id"`
             tick: &'a usize,
             time: &'a mut f32,
         }

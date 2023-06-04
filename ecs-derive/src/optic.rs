@@ -19,6 +19,18 @@ pub enum ParseError {
 }
 
 impl Optic {
+    /// Compose two optics sequentially.
+    pub fn compose(self, tail: Self) -> Self {
+        match self {
+            Optic::Id => tail,
+            Optic::Field { name, optic } => Optic::Field {
+                name,
+                optic: Box::new(optic.compose(tail)),
+            },
+            Optic::Some(optic) => Optic::Some(Box::new(optic.compose(tail))),
+        }
+    }
+
     /// The type of the component of the storage queried.
     pub fn storage_type(&self, target_type: syn::Type) -> syn::Type {
         match self {
