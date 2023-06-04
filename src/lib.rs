@@ -7,9 +7,13 @@
 
 pub use ecs_derive::{query_components, StructOf, StructQuery};
 
-pub mod archetype;
-pub mod query;
-pub mod storage;
+mod archetype;
+mod query;
+mod storage;
+
+pub use archetype::*;
+pub use query::*;
+pub use storage::*;
 
 pub mod prelude {
     pub use crate::{archetype::*, query::*, storage::*, StructOf, StructQuery};

@@ -123,10 +123,11 @@ impl QueryOpts {
             .collect::<Vec<_>>();
 
         let image = self.image;
-        quote! {
+        quote! {{
+            use ::ecs::Storage;
             #image {
                 #(#fields)*
             }
-        }
+        }}
     }
 }

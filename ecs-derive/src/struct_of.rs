@@ -97,7 +97,7 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'a> }
+                        quote! { <#ty as ::ecs::StructRef>::Ref<'a> }
                     } else {
                         quote! { &'a #ty }
                     };
@@ -124,7 +124,7 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::archetype::StructRef>::RefMut<'a> }
+                        quote! { <#ty as ::ecs::StructRef>::RefMut<'a> }
                     } else {
                         quote! { &'a mut #ty }
                     };
@@ -141,13 +141,13 @@ impl Struct {
         };
 
         let struct_split_fields = quote! {
-            impl<F: StorageFamily> SplitFields<F> for #struct_name {
+            impl<F: ::ecs::StorageFamily> ::ecs::SplitFields<F> for #struct_name {
                 type StructOf = #struct_of_name<F>;
             }
         };
 
         let struct_ref_impl = quote! {
-            impl StructRef for #struct_name {
+            impl ::ecs::StructRef for #struct_name {
                 type Ref<'a> = #struct_ref_name<'a>;
                 type RefMut<'a> = #struct_ref_mut_name<'a>;
             }
@@ -160,7 +160,7 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf }
+                        quote! { <#ty as ::ecs::SplitFields<F>>::StructOf }
                     } else {
                         quote! { F::Storage<#ty> }
                     };
@@ -171,7 +171,7 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                #vis struct #struct_of_name<F: StorageFamily> {
+                #vis struct #struct_of_name<F: ::ecs::StorageFamily> {
                     #(#fields)*
                 }
             }
@@ -183,7 +183,7 @@ impl Struct {
                 .map(|field| {
                     let ty = &field.ty;
                     if field.nested {
-                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf: Clone }
+                        quote! { <#ty as ::ecs::SplitFields<F>>::StructOf: Clone }
                     } else {
                         quote! { F::Storage<#ty>: Clone }
                     }
@@ -196,7 +196,7 @@ impl Struct {
             });
 
             quote! {
-                impl<F: StorageFamily> Clone for #struct_of_name<F>
+                impl<F: ::ecs::StorageFamily> Clone for #struct_of_name<F>
                 where
                     #(#constraints),*
                 {
@@ -245,26 +245,31 @@ impl Struct {
             });
 
             quote! {
-                impl<F: StorageFamily> #struct_of_name<F> {
+                impl<F: ::ecs::StorageFamily> #struct_of_name<F> {
                     pub fn get(&self, id: F::Id) -> Option<#struct_ref_name<'_>> {
+                        use ::ecs::Storage;
                         #(#get)*
                     }
 
                     pub fn get_mut(&mut self, id: F::Id) -> Option<#struct_ref_mut_name<'_>> {
+                        use ::ecs::Storage;
                         #(#get_mut)*
                     }
 
                     // TODO: impl IntoIterator
                     pub fn into_iter(mut self) -> impl Iterator<Item = (F::Id, #struct_name)> where F: 'static {
+                        use ::ecs::Archetype;
                         self.ids().filter_map(move |id| self.remove(id).map(move |item| (id, item)))
                     }
 
                     pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_>)> {
+                        use ::ecs::Archetype;
                         self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
                     // TODO
                     // pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a>)> + 'a {
+                    //     use ::ecs::Archetype;
                     //     self.ids().filter_map(|id| self.get_mut(id).map(move |item| (id, item)))
                     // }
                 }
@@ -312,15 +317,18 @@ impl Struct {
                 .expect("Expected at least one field");
 
             quote! {
-                impl<F: StorageFamily> Archetype<F> for #struct_of_name<F> {
+                impl<F: ::ecs::StorageFamily> ::ecs::Archetype<F> for #struct_of_name<F> {
                     type Item = #struct_name;
                     fn ids(&self) -> F::IdIter {
+                        use ::ecs::Storage;
                         #ids
                     }
                     fn insert(&mut self, value: Self::Item) -> F::Id {
+                        use ::ecs::Storage;
                         #(#insert)*
                     }
                     fn remove(&mut self, id: F::Id) -> Option<Self::Item> {
+                        use ::ecs::Storage;
                         #(#remove)*
                     }
                 }
@@ -339,7 +347,7 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                impl<F: StorageFamily> Default for #struct_of_name<F> {
+                impl<F: ::ecs::StorageFamily> Default for #struct_of_name<F> {
                     fn default() -> Self {
                         Self {
                             #(#fields),*

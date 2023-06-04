@@ -1,17 +1,17 @@
 #![allow(dead_code)]
 
-use ecs::prelude::*;
+// use ecs::prelude::*;
 
 use collection::Collection;
 
 #[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {
-    units: StructOf<Collection<Unit>>, // UnitStructOf<CollectionFamily>,
-    corpses: StructOf<Vec<Corpse>>,    // CorpseStructOf<VecFamily>,
-    particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
+    units: ecs::StructOf<Collection<Unit>>, // UnitStructOf<CollectionFamily>,
+    corpses: ecs::StructOf<Vec<Corpse>>,    // CorpseStructOf<VecFamily>,
+    particles: ecs::StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
 }
 
-#[derive(StructOf, Debug, Clone)]
+#[derive(ecs::StructOf, Debug, Clone)]
 struct Unit {
     // id: Id,
     pos: (f32, f32),
@@ -20,7 +20,7 @@ struct Unit {
     damage: Option<f32>,
 }
 
-#[derive(StructOf, Debug)]
+#[derive(ecs::StructOf, Debug)]
 struct Corpse {
     // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
     #[structof(nested)]
@@ -28,7 +28,7 @@ struct Corpse {
     time: f32,
 }
 
-#[derive(StructOf, Debug)]
+#[derive(ecs::StructOf, Debug)]
 struct Particle {
     pos: (f32, f32),
     time: f32,
@@ -38,29 +38,33 @@ fn main() {
     println!("Hello, example!");
 
     let mut world = GameWorld {
-        units: StructOf::new(),
-        corpses: StructOf::new(),
-        particles: StructOf::new(),
+        units: ecs::StructOf::new(),
+        corpses: ecs::StructOf::new(),
+        particles: ecs::StructOf::new(),
     };
 
-    world.units.insert(Unit {
-        pos: (0.0, 0.0),
-        health: 10.0,
-        tick: 7,
-        damage: None,
-    });
-    world.units.insert(Unit {
-        pos: (1.0, -2.0),
-        health: 15.0,
-        tick: 3,
-        damage: Some(1.5),
-    });
+    {
+        use ecs::Archetype;
 
-    for _ in 0..3 {
-        world.particles.insert(Particle {
-            pos: (1.0, -0.5),
-            time: 1.0,
+        world.units.insert(Unit {
+            pos: (0.0, 0.0),
+            health: 10.0,
+            tick: 7,
+            damage: None,
         });
+        world.units.insert(Unit {
+            pos: (1.0, -2.0),
+            health: 15.0,
+            tick: 3,
+            damage: Some(1.5),
+        });
+
+        for _ in 0..3 {
+            world.particles.insert(Particle {
+                pos: (1.0, -0.5),
+                time: 1.0,
+            });
+        }
     }
 
     // Iterate over all fields of all units
@@ -77,7 +81,7 @@ fn main() {
 
     // Query fields
     {
-        #[derive(StructQuery, Debug)]
+        #[derive(ecs::StructQuery, Debug)]
         struct PosTickRef<'a> {
             pos: &'a (f32, f32),
             tick: &'a usize,
@@ -91,7 +95,7 @@ fn main() {
 
     // Query an optional field
     {
-        #[derive(StructQuery, Debug)]
+        #[derive(ecs::StructQuery, Debug)]
         struct HealthDamageRef<'a> {
             health: &'a f32,
             // query from a component of type `Option<f32>` with value `Some(damage)`
@@ -107,12 +111,12 @@ fn main() {
 
     // Splitting mutable access to components
     {
-        #[derive(StructQuery, Debug)]
+        #[derive(ecs::StructQuery, Debug)]
         struct HealthRef<'a> {
             health: &'a mut f32,
         }
 
-        #[derive(StructQuery, Debug)]
+        #[derive(ecs::StructQuery, Debug)]
         struct TickRef<'a> {
             tick: &'a mut usize,
         }
@@ -145,7 +149,7 @@ fn main() {
 
     // Query multiple entity types at the same time
     {
-        #[derive(StructQuery, Debug)]
+        #[derive(ecs::StructQuery, Debug)]
         struct PosRef<'a> {
             pos: &'a (f32, f32),
         }
@@ -160,7 +164,7 @@ fn main() {
 
     // Query from a nested storage
     {
-        #[derive(StructQuery, Debug)]
+        #[derive(ecs::StructQuery, Debug)]
         struct TickRef<'a> {
             #[query(nested = ".unit")] // same as `optic = ".unit.tick._get"`
             tick: &'a usize,

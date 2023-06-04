@@ -192,7 +192,7 @@ impl Query {
 
         // impl StructQuery
         let struct_query = quote! {
-            impl<'b, F: StorageFamily + 'static> StructQuery<F> for #query_name<'b> {
+            impl<'b, F: ::ecs::StorageFamily + 'static> ::ecs::StructQuery<F> for #query_name<'b> {
                 type Components<'a> = #query_components_name<'a, F>;
             }
         };
@@ -214,7 +214,7 @@ impl Query {
                 .collect::<Vec<_>>();
 
             quote! {
-                struct #query_components_name<'a, F: StorageFamily> {
+                struct #query_components_name<'a, F: ::ecs::StorageFamily> {
                     phantom_data: ::std::marker::PhantomData<F>,
                     #(#fields)*
                 }
@@ -228,7 +228,7 @@ impl Query {
                 .first()
                 .map(|field| {
                     let name = &field.name;
-                    quote! { self.#name.ids() }
+                    quote! { ::ecs::Storage::ids(self.#name) }
                 })
                 .expect("Expected at least one field");
 
@@ -284,16 +284,18 @@ impl Query {
             });
 
             quote! {
-                impl<'b, F: StorageFamily> QueryComponents<F> for #query_components_name<'b, F> {
+                impl<'b, F: ::ecs::StorageFamily> ::ecs::QueryComponents<F> for #query_components_name<'b, F> {
                     type Item<'a> = #query_name<'a> where Self: 'a;
                     type ItemReadOnly<'a> = #query_readonly_name<'a> where Self: 'a;
                     fn ids(&self) -> F::IdIter {
                         #ids
                     }
                     fn get(&self, id: F::Id) -> Option<Self::ItemReadOnly<'_>> {
+                        use ::ecs::Storage;
                         #(#get)*
                     }
                     fn get_mut(&mut self, id: F::Id) -> Option<Self::Item<'_>> {
+                        use ::ecs::Storage;
                         #(#get_mut)*
                     }
                 }
@@ -333,21 +335,21 @@ impl Query {
                 .first()
                 .map(|field| {
                     let access = field.storage.access();
-                    quote! { #access.phantom_data() }
+                    quote! { #access }
                 })
                 .expect("Expected at least one field");
 
             quote! {
                 macro_rules! #macro_name {
                     ($structof: expr) => {{
-                        let phantom_data = $structof.inner #get_phantom_data;
+                        let phantom_data = ::ecs::Storage::phantom_data(&$structof.inner #get_phantom_data);
                         let components = ::ecs::query_components!(
                             $structof.inner,
                             #query_components_name,
                             (#(#fields),*),
                             { phantom_data }
                         );
-                        #query_name::query(components)
+                        <#query_name as ::ecs::StructQuery<_>>::query(components)
                     }}
                 }
             }
