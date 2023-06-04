@@ -8,6 +8,10 @@
 pub use ecs_derive::{query_components, StructOf, StructQuery};
 
 mod archetype;
+#[cfg(feature = "arena")]
+pub mod arena;
+#[cfg(feature = "hashstorage")]
+pub mod hashstorage;
 mod query;
 mod storage;
 
