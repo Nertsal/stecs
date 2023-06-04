@@ -7,16 +7,25 @@ use collection::Collection;
 #[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {
     units: StructOf<Collection<Unit>>, // UnitStructOf<CollectionFamily>,
+    corpses: StructOf<Vec<Corpse>>,    // CorpseStructOf<VecFamily>,
     particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
 }
 
-#[derive(StructOf, Debug)]
+#[derive(StructOf, Debug, Clone)]
 struct Unit {
     // id: Id,
     pos: (f32, f32),
     health: f32,
     tick: usize,
     damage: Option<f32>,
+}
+
+#[derive(StructOf, Debug)]
+struct Corpse {
+    // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
+    #[structof(nested)]
+    unit: Unit,
+    time: f32,
 }
 
 #[derive(StructOf, Debug)]
@@ -30,6 +39,7 @@ fn main() {
 
     let mut world = GameWorld {
         units: StructOf::new(),
+        corpses: StructOf::new(),
         particles: StructOf::new(),
     };
 
@@ -65,12 +75,27 @@ fn main() {
         println!("{particle:?}");
     }
 
+    // Query fields
+    {
+        #[derive(StructQuery, Debug)]
+        struct PosTickRef<'a> {
+            pos: &'a (f32, f32),
+            tick: &'a usize,
+        }
+
+        println!("\nPosition with tick:");
+        for item in &query_pos_tick_ref!(world.units) {
+            println!("{item:?}");
+        }
+    }
+
     // Query an optional field
     {
         #[derive(StructQuery, Debug)]
         struct HealthDamageRef<'a> {
             health: &'a f32,
-            #[query(optional)] // same as `component = "Option<f32>"`
+            // query from a component of type `Option<f32>` with value `Some(damage)`
+            #[query(component = "._Some")]
             damage: &'a f32,
         }
 
@@ -130,6 +155,22 @@ fn main() {
         let particles = query_pos_ref!(world.particles);
         for pos in units.values().chain(particles.values()) {
             println!("{pos:?}");
+        }
+    }
+
+    // Query from a nested storage
+    {
+        #[derive(StructQuery, Debug)]
+        struct TickRef<'a> {
+            #[query(storage = ".unit.tick")]
+            tick: &'a usize,
+            time: &'a mut f32,
+        }
+
+        println!();
+        let corpses = query_tick_ref!(world.corpses);
+        for tick in corpses.values() {
+            println!("{tick:?}");
         }
     }
 

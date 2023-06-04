@@ -32,6 +32,13 @@ pub trait SplitFields<F: StorageFamily>: Sized {
     type StructOf: Archetype<F>;
 }
 
+pub trait StructRef {
+    /// Type that holds immutable references to the fields.
+    type Ref<'a>;
+    /// Type that holds mutable references to the fields.
+    type RefMut<'a>;
+}
+
 impl<S: StructOfAble> StructOf<S> {
     pub fn new() -> Self {
         Self::default()

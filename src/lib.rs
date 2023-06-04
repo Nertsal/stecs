@@ -5,14 +5,12 @@
 //   - component storages
 //     - component values (the actual data)
 
-// -- Macros --
+pub use ecs_derive::{query_components, StructOf, StructQuery};
 
-pub use ecs_derive::{StructOf, StructQuery};
-
-mod archetype;
-mod query;
-mod storage;
+pub mod archetype;
+pub mod query;
+pub mod storage;
 
 pub mod prelude {
-    pub use crate::{archetype::*, query::*, query_components, storage::*, StructOf, StructQuery};
+    pub use crate::{archetype::*, query::*, storage::*, StructOf, StructQuery};
 }

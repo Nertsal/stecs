@@ -1,4 +1,8 @@
-use super::*;
+use crate::syn;
+
+use darling::{ast, FromDeriveInput, FromField};
+use proc_macro2::TokenStream;
+use quote::{quote, TokenStreamExt};
 
 #[derive(FromDeriveInput)]
 #[darling(supports(struct_named))]
@@ -9,9 +13,11 @@ pub struct StructOpts {
 }
 
 #[derive(FromField)]
+#[darling(attributes(structof))]
 struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
+    nested: Option<()>,
 }
 
 struct Struct {
@@ -23,6 +29,7 @@ struct Struct {
 struct Field {
     name: syn::Ident,
     ty: syn::Type,
+    nested: bool,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -46,7 +53,11 @@ impl TryFrom<StructOpts> for Struct {
             .into_iter()
             .map(|field| {
                 let name = field.ident.ok_or(ParseError::NamelessField)?;
-                Ok(Field { name, ty: field.ty })
+                Ok(Field {
+                    name,
+                    ty: field.ty,
+                    nested: field.nested.is_some(),
+                })
             })
             .collect::<Result<Vec<Field>, ParseError>>()?;
         Ok(Self {
@@ -85,7 +96,12 @@ impl Struct {
                 .map(|field| {
                     let name = &field.name;
                     let ty = &field.ty;
-                    quote! { pub #name: &'a #ty, }
+                    let ty = if field.nested {
+                        quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'a> }
+                    } else {
+                        quote! { &'a #ty }
+                    };
+                    quote! { pub #name: #ty, }
                 })
                 .collect::<Vec<_>>();
 
@@ -107,7 +123,12 @@ impl Struct {
                 .map(|field| {
                     let name = &field.name;
                     let ty = &field.ty;
-                    quote! { pub #name: &'a mut #ty, }
+                    let ty = if field.nested {
+                        quote! { <#ty as ::ecs::archetype::StructRef>::RefMut<'a> }
+                    } else {
+                        quote! { &'a mut #ty }
+                    };
+                    quote! { pub #name: #ty, }
                 })
                 .collect::<Vec<_>>();
 
@@ -125,21 +146,33 @@ impl Struct {
             }
         };
 
+        let struct_ref_impl = quote! {
+            impl StructRef for #struct_name {
+                type Ref<'a> = #struct_ref_name<'a>;
+                type RefMut<'a> = #struct_ref_mut_name<'a>;
+            }
+        };
+
         let struct_of = {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
                     let ty = &field.ty;
+                    let ty = if field.nested {
+                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf }
+                    } else {
+                        quote! { F::Storage<#ty> }
+                    };
                     quote! {
-                        pub #name: F::Storage<#ty>
+                        pub #name: #ty,
                     }
                 })
                 .collect::<Vec<_>>();
 
             quote! {
                 #vis struct #struct_of_name<F: StorageFamily> {
-                    #(#fields),*
+                    #(#fields)*
                 }
             }
         };
@@ -149,7 +182,11 @@ impl Struct {
                 .iter()
                 .map(|field| {
                     let ty = &field.ty;
-                    quote! { F::Storage<#ty>: Clone }
+                    if field.nested {
+                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf: Clone }
+                    } else {
+                        quote! { F::Storage<#ty>: Clone }
+                    }
                 })
                 .collect::<Vec<_>>();
 
@@ -316,6 +353,7 @@ impl Struct {
         generated.append_all(struct_split_fields);
         generated.append_all(struct_ref);
         generated.append_all(struct_ref_mut);
+        generated.append_all(struct_ref_impl);
         generated.append_all(struct_of);
         generated.append_all(struct_of_clone);
         generated.append_all(struct_of_impl);

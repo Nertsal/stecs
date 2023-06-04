@@ -1,7 +1,6 @@
 use crate::storage::StorageFamily;
 
 mod iter;
-mod macros;
 
 pub use iter::*;
 

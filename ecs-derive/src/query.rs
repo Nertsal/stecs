@@ -1,4 +1,9 @@
-use super::*;
+use crate::optic::{self, Optic};
+use crate::syn;
+
+use darling::{ast, FromDeriveInput, FromField};
+use proc_macro2::TokenStream;
+use quote::{quote, TokenStreamExt};
 
 #[derive(FromDeriveInput)]
 #[darling(supports(struct_named))]
@@ -12,8 +17,9 @@ pub struct QueryOpts {
 struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
-    optional: Option<()>,
-    component: Option<syn::Type>,
+    r#type: Option<syn::Type>,
+    storage: Option<String>,
+    component: Option<String>,
 }
 
 struct Query {
@@ -25,7 +31,9 @@ struct Field {
     name: syn::Ident,
     is_mutable: bool,
     ty: syn::Type,
-    component: syn::Type,
+    storage_type: syn::Type,
+    storage: Optic,
+    component: Optic,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -38,8 +46,8 @@ enum ParseError {
     ZeroFields,
     #[error("field `{name}` is neither a `&` or a `&mut`")]
     FieldNotRef { name: syn::Ident },
-    #[error("at most one of `component` and `optional` attributes are allowed")]
-    OptionalWithComponent,
+    #[error("optic has invalid syntax: {0}")]
+    OpticParse(#[from] optic::ParseError),
 }
 
 impl TryFrom<QueryOpts> for Query {
@@ -65,21 +73,31 @@ impl TryFrom<QueryOpts> for Query {
                 let ty = *refer.elem;
                 let is_mutable = refer.mutability.is_some();
 
-                if field.component.is_some() && field.optional.is_some() {
-                    return Err(ParseError::OptionalWithComponent);
-                }
-                let component = field.component.unwrap_or_else(|| {
-                    if field.optional.is_some() {
-                        syn::Type::Verbatim(quote! { Option<#ty> })
-                    } else {
-                        ty.clone()
+                let storage = if let Some(optic) = field.storage {
+                    optic.parse()?
+                } else {
+                    Optic::Field {
+                        name: name.clone(),
+                        optic: Box::new(Optic::Id),
                     }
-                });
+                };
+
+                let component = if let Some(optic) = field.component {
+                    optic.parse()?
+                } else {
+                    Optic::Id
+                };
+
+                let storage_type = field
+                    .r#type
+                    .unwrap_or_else(|| component.storage_type(ty.clone()));
 
                 Ok(Field {
                     name,
                     is_mutable,
                     ty,
+                    storage_type,
+                    storage,
                     component,
                 })
             })
@@ -153,7 +171,7 @@ impl Query {
                 .map(|field| {
                     let name = &field.name;
                     let mutable = field.is_mutable;
-                    let ty = &field.component;
+                    let ty = &field.storage_type;
                     if mutable {
                         quote! { #name: &'a mut F::Storage<#ty>, }
                     } else {
@@ -171,6 +189,7 @@ impl Query {
         };
 
         let query_components = {
+            // TODO: check
             let ids = query_fields
                 .first()
                 .map(|field| {
@@ -191,8 +210,9 @@ impl Query {
                 .iter()
                 .map(|field| {
                     let name = &field.name;
+                    let access = field.component.access();
                     let ty = &field.ty;
-                    quote! { let #name: &#ty = self.#name.get(id)?.get_component()?; }
+                    quote! { let #name: &#ty = self.#name.get(id)?#access; }
                 })
                 .collect::<Vec<_>>();
             get.push(quote! {
@@ -205,9 +225,11 @@ impl Query {
                     let name = &field.name;
                     let ty = &field.ty;
                     if field.is_mutable {
-                        quote! { let #name: &mut #ty = self.#name.get_mut(id)?.get_component_mut()?; }
+                        let access = field.component.access_mut();
+                        quote! { let #name: &mut #ty = self.#name.get_mut(id)?#access; }
                     } else {
-                        quote! { let #name: &#ty = self.#name.get(id)?.get_component()?; }
+                        let access = field.component.access();
+                        quote! { let #name: &#ty = self.#name.get(id)?#access; }
                     }
                 })
                 .collect::<Vec<_>>();
@@ -251,10 +273,11 @@ impl Query {
                 .iter()
                 .map(|field| {
                     let name = &field.name;
+                    let access = field.storage.access();
                     if field.is_mutable {
-                        quote! { mut #name }
+                        quote! { mut #name = #access }
                     } else {
-                        quote! { #name }
+                        quote! { #name = #access }
                     }
                 })
                 .collect::<Vec<_>>();
@@ -262,26 +285,29 @@ impl Query {
             let get_phantom_data = query_fields
                 .first()
                 .map(|field| {
-                    let name = &field.name;
-                    quote! { #name.phantom_data() }
+                    let access = field.storage.access();
+                    quote! { #access.phantom_data() }
                 })
                 .expect("Expected at least one field");
 
             quote! {
                 macro_rules! #macro_name {
                     ($structof: expr) => {{
-                        let phantom_data = $structof.inner.#get_phantom_data;
+                        let phantom_data = $structof.inner #get_phantom_data;
                         let components = ::ecs::query_components!(
-                            $structof,
+                            $structof.inner,
                             #query_components_name,
                             (#(#fields),*),
-                            { phantom_data: phantom_data }
+                            { phantom_data }
                         );
                         #query_name::query(components)
                     }}
                 }
             }
         };
+
+        // panic!("{}", query_components);
+        // panic!("{}", query_macro);
 
         let mut generated = TokenStream::new();
         generated.append_all(struct_query);
