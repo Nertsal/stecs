@@ -18,8 +18,7 @@ struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
     r#type: Option<syn::Type>,
-    storage: Option<String>,
-    component: Option<String>,
+    optic: Option<String>,
 }
 
 struct Query {
@@ -73,20 +72,16 @@ impl TryFrom<QueryOpts> for Query {
                 let ty = *refer.elem;
                 let is_mutable = refer.mutability.is_some();
 
-                let storage = if let Some(optic) = field.storage {
-                    optic.parse()?
+                let (storage, component) = if let Some(optic) = field.optic {
+                    Optic::parse_storage_component(&optic)?
                 } else {
-                    Optic::Field {
-                        name: name.clone(),
-                        optic: Box::new(Optic::Id),
-                    }
+                    (None, None)
                 };
-
-                let component = if let Some(optic) = field.component {
-                    optic.parse()?
-                } else {
-                    Optic::Id
-                };
+                let storage = storage.unwrap_or(Optic::Field {
+                    name: name.clone(),
+                    optic: Box::new(Optic::Id),
+                });
+                let component = component.unwrap_or(Optic::Id);
 
                 let storage_type = field
                     .r#type

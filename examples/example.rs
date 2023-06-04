@@ -95,7 +95,7 @@ fn main() {
         struct HealthDamageRef<'a> {
             health: &'a f32,
             // query from a component of type `Option<f32>` with value `Some(damage)`
-            #[query(component = "._Some")]
+            #[query(optic = "._Some")]
             damage: &'a f32,
         }
 
@@ -162,7 +162,7 @@ fn main() {
     {
         #[derive(StructQuery, Debug)]
         struct TickRef<'a> {
-            #[query(storage = ".unit.tick")]
+            #[query(optic = ".unit.tick._get._id")]
             tick: &'a usize,
             time: &'a mut f32,
         }

@@ -14,6 +14,8 @@ pub enum Optic {
 pub enum ParseError {
     #[error("Optic must start with a dot to indicate field access")]
     ExpectedDot,
+    #[error("At most one _get is allowed")]
+    TooManyGets,
 }
 
 impl Optic {
@@ -56,6 +58,17 @@ impl Optic {
             }
         }
     }
+
+    /// Separated by `._get`.
+    pub fn parse_storage_component(s: &str) -> Result<(Option<Self>, Option<Self>), ParseError> {
+        let parts = s.split("._get").collect::<Vec<_>>();
+        match &parts[..] {
+            [] => Ok((None, None)),
+            [component] => Ok((None, Some(component.parse()?))),
+            [storage, component] => Ok((Some(storage.parse()?), Some(component.parse()?))),
+            _ => Err(ParseError::TooManyGets),
+        }
+    }
 }
 
 impl std::str::FromStr for Optic {
@@ -66,7 +79,7 @@ impl std::str::FromStr for Optic {
         let s = s.trim().strip_prefix('.').ok_or(ParseError::ExpectedDot)?;
         for accessor in s.split('.').rev() {
             optic = match accessor.trim() {
-                // "id" => Optic::Id,
+                "_id" => Optic::Id,
                 "_Some" => Optic::Some(Box::new(optic)),
                 field => Optic::Field {
                     name: Ident::new_raw(field, proc_macro2::Span::call_site()),
