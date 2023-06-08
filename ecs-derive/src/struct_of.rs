@@ -88,6 +88,24 @@ impl Struct {
             proc_macro2::Span::call_site(),
         );
 
+        let struct_cloned = {
+            let fields = struct_fields
+                .iter()
+                .map(|field| {
+                    let name = &field.name;
+                    quote! { #name: self.#name.clone(), }
+                })
+                .collect::<Vec<_>>();
+
+            quote! {
+                pub fn clone(&self) -> #struct_name {
+                    #struct_name {
+                        #(#fields)*
+                    }
+                }
+            }
+        };
+
         let struct_ref_name =
             syn::Ident::new(&format!("{struct_name}Ref"), proc_macro2::Span::call_site());
         let struct_ref = {
@@ -109,6 +127,10 @@ impl Struct {
                 #[derive(Debug)]
                 #vis struct #struct_ref_name<'a> {
                     #(#fields)*
+                }
+
+                impl #struct_ref_name<'_> {
+                    #struct_cloned
                 }
             }
         };
