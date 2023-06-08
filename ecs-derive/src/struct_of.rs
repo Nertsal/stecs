@@ -246,6 +246,10 @@ impl Struct {
 
             quote! {
                 impl<F: ::ecs::StorageFamily> #struct_of_name<F> {
+                    pub fn phantom_data(&self, ) -> ::std::marker::PhantomData<F> {
+                        ::std::default::Default::default()
+                    }
+
                     pub fn get(&self, id: F::Id) -> Option<#struct_ref_name<'_>> {
                         use ::ecs::Storage;
                         #(#get)*

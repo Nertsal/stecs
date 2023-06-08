@@ -21,6 +21,7 @@ struct Unit {
 #[derive(StructOf, Debug)]
 struct Corpse {
     // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
+    // But you can still access the whole `Unit` as a single component.
     #[structof(nested)]
     unit: Unit,
     time: f32,
@@ -160,13 +161,28 @@ fn main() {
     {
         #[derive(StructQuery, Debug)]
         struct TickRef<'a> {
-            #[query(nested = ".unit")] // same as `optic = ".unit.tick._get"`
+            #[query(storage = ".unit")] // same as `optic = ".unit.tick._get"`
             tick: &'a usize,
             time: &'a mut f32,
         }
 
         println!();
         let corpses = query_tick_ref!(world.corpses);
+        for tick in corpses.values() {
+            println!("{tick:?}");
+        }
+    }
+
+    // Query the whole nested storage
+    {
+        #[derive(StructQuery, Debug)]
+        struct UnitRef<'a> {
+            #[query(nested)]
+            unit: &'a Unit,
+        }
+
+        println!();
+        let corpses = query_unit_ref!(world.corpses);
         for tick in corpses.values() {
             println!("{tick:?}");
         }

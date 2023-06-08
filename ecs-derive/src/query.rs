@@ -20,7 +20,9 @@ struct FieldOpts {
     /// Override the component type, for when it cannot be inferred correctly.
     component: Option<syn::Type>,
     /// Alias for `optic = "<nested>.<field>._get"`.
-    nested: Option<String>,
+    storage: Option<String>,
+    /// Query all fields of the nested storage.
+    nested: Option<()>,
     optic: Option<String>,
 }
 
@@ -31,11 +33,18 @@ struct Query {
 
 struct Field {
     name: syn::Ident,
+    owner: FieldOwner,
     is_mutable: bool,
     ty: syn::Type,
+    ty_qualified: syn::Type,
     storage_type: syn::Type,
     storage: Optic,
     component: Optic,
+}
+
+enum FieldOwner {
+    Owned,
+    Borrowed,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -74,8 +83,39 @@ impl TryFrom<QueryOpts> for Query {
                 let syn::Type::Reference(refer) = field.ty else {
                     return Err(ParseError::FieldNotRef { name });
                 };
-                let ty = *refer.elem;
                 let is_mutable = refer.mutability.is_some();
+                let (ty, ty_qualified, owner, storage_type) = if field.nested.is_none() {
+                    (
+                        (*refer.elem).clone(),
+                        *refer.elem,
+                        FieldOwner::Borrowed,
+                        field
+                            .component
+                            .clone()
+                            .map(|ty| syn::Type::Verbatim(quote! { F::Storage<#ty> })),
+                    )
+                } else {
+                    let ty = *refer.elem;
+                    if is_mutable {
+                        (
+                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::RefMut<'_> }),
+                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::RefMut<'a> }),
+                            FieldOwner::Owned,
+                            Some(syn::Type::Verbatim(
+                                quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
+                            )),
+                        )
+                    } else {
+                        (
+                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
+                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
+                            FieldOwner::Owned,
+                            Some(syn::Type::Verbatim(
+                                quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
+                            )),
+                        )
+                    }
+                };
 
                 // Parse the provided optic
                 let (mut storage, mut component) = if let Some(optic) = field.optic {
@@ -86,7 +126,7 @@ impl TryFrom<QueryOpts> for Query {
 
                 // `storage` acts as a convenient storage-only optic composed with the field name accessor
                 // component optic can still be specified in `optic`
-                if let Some(optic) = field.nested {
+                if let Some(optic) = field.storage {
                     if storage.is_some() {
                         return Err(ParseError::NestedWithStorage);
                     }
@@ -118,14 +158,17 @@ impl TryFrom<QueryOpts> for Query {
                 let component = component.unwrap_or(Optic::Id);
 
                 // Guess the storage type by checking the component optic
-                let storage_type = field
-                    .component
-                    .unwrap_or_else(|| component.storage_type(ty.clone()));
+                let storage_type = storage_type.unwrap_or_else(|| {
+                    let ty = component.storage_type(ty.clone());
+                    syn::Type::Verbatim(quote! { F::Storage<#ty> })
+                });
 
                 Ok(Field {
                     name,
+                    owner,
                     is_mutable,
                     ty,
+                    ty_qualified,
                     storage_type,
                     storage,
                     component,
@@ -160,9 +203,46 @@ impl Query {
 
         let is_mut = query_fields.iter().any(|field| field.is_mutable);
 
+        // Original variant (nested storages are rewritten)
+        let (query_mutable, query_mutable_name) = {
+            let query_mutable_name = syn::Ident::new(
+                &format!("{query_name}Query"),
+                proc_macro2::Span::call_site(),
+            );
+
+            let fields = query_fields
+                .iter()
+                .map(|field| {
+                    let name = &field.name;
+                    let ty = &field.ty_qualified;
+                    match field.owner {
+                        FieldOwner::Owned => quote! { #name: #ty, },
+                        FieldOwner::Borrowed => {
+                            if field.is_mutable {
+                                quote! { #name: &'a mut #ty, }
+                            } else {
+                                quote! { #name: &'a #ty, }
+                            }
+                        }
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            (
+                quote! {
+                    #[derive(Debug)]
+                    #[allow(dead_code)]
+                    struct #query_mutable_name<'a> {
+                        #(#fields)*
+                    }
+                },
+                query_mutable_name,
+            )
+        };
+
         // Read-only variant
         let (query_readonly, query_readonly_name) = if !is_mut {
-            (quote! {}, query_name.clone())
+            (quote! {}, query_mutable_name.clone())
         } else {
             let query_readonly_name = syn::Ident::new(
                 &format!("{query_name}ReadOnly"),
@@ -192,7 +272,7 @@ impl Query {
 
         // impl StructQuery
         let struct_query = quote! {
-            impl<'b, F: ::ecs::StorageFamily + 'static> ::ecs::StructQuery<F> for #query_name<'b> {
+            impl<'b, F: ::ecs::StorageFamily + 'static> ::ecs::StructQuery<F> for #query_mutable_name<'b> {
                 type Components<'a> = #query_components_name<'a, F>;
             }
         };
@@ -206,15 +286,15 @@ impl Query {
                     let mutable = field.is_mutable;
                     let ty = &field.storage_type;
                     if mutable {
-                        quote! { #name: &'a mut F::Storage<#ty>, }
+                        quote! { #name: &'a mut #ty, }
                     } else {
-                        quote! { #name: &'a F::Storage<#ty>, }
+                        quote! { #name: &'a #ty, }
                     }
                 })
                 .collect::<Vec<_>>();
 
             quote! {
-                struct #query_components_name<'a, F: ::ecs::StorageFamily> {
+                struct #query_components_name<'a, F: ::ecs::StorageFamily + 'a> {
                     phantom_data: ::std::marker::PhantomData<F>,
                     #(#fields)*
                 }
@@ -228,7 +308,7 @@ impl Query {
                 .first()
                 .map(|field| {
                     let name = &field.name;
-                    quote! { ::ecs::Storage::ids(self.#name) }
+                    quote! { self.#name.ids() }
                 })
                 .expect("Expected at least one field");
 
@@ -246,10 +326,15 @@ impl Query {
                     let name = &field.name;
                     let access = field.component.access();
                     let ty = &field.ty;
-                    if field.component.ends_with_field() {
-                        quote! { let #name: &#ty = &self.#name.get(id)?#access; }
+                    let ty = if let FieldOwner::Owned = field.owner {
+                        quote! { #ty }
                     } else {
-                        quote! { let #name: &#ty = self.#name.get(id)?#access; }
+                        quote! { &#ty }
+                    };
+                    if field.component.ends_with_field() {
+                        quote! { let #name: #ty = &self.#name.get(id)?#access; }
+                    } else {
+                        quote! { let #name: #ty = self.#name.get(id)?#access; }
                     }
                 })
                 .collect::<Vec<_>>();
@@ -262,19 +347,26 @@ impl Query {
                 .map(|field| {
                     let name = &field.name;
                     let ty = &field.ty;
+                    let ty = if let FieldOwner::Owned = field.owner {
+                        quote! { #ty }
+                    } else if field.is_mutable {
+                        quote! { &mut #ty }
+                    } else {
+                        quote! { & #ty }
+                    };
                     if field.is_mutable {
                         let access = field.component.access_mut();
                         if field.component.ends_with_field() {
-                            quote! { let #name: &mut #ty = &mut self.#name.get_mut(id)?#access; }
+                            quote! { let #name: #ty = &mut self.#name.get_mut(id)?#access; }
                         } else {
-                            quote! { let #name: &mut #ty = self.#name.get_mut(id)?#access; }
+                            quote! { let #name: #ty = self.#name.get_mut(id)?#access; }
                         }
                     } else {
                         let access = field.component.access();
                         if field.component.ends_with_field() {
-                            quote! { let #name: &#ty = &self.#name.get(id)?#access; }
+                            quote! { let #name: #ty = &self.#name.get(id)?#access; }
                         } else {
-                            quote! { let #name: &#ty = self.#name.get(id)?#access; }
+                            quote! { let #name: #ty = self.#name.get(id)?#access; }
                         }
                     }
                 })
@@ -285,9 +377,10 @@ impl Query {
 
             quote! {
                 impl<'b, F: ::ecs::StorageFamily> ::ecs::QueryComponents<F> for #query_components_name<'b, F> {
-                    type Item<'a> = #query_name<'a> where Self: 'a;
+                    type Item<'a> = #query_mutable_name<'a> where Self: 'a;
                     type ItemReadOnly<'a> = #query_readonly_name<'a> where Self: 'a;
                     fn ids(&self) -> F::IdIter {
+                        use ::ecs::Storage;
                         #ids
                     }
                     fn get(&self, id: F::Id) -> Option<Self::ItemReadOnly<'_>> {
@@ -342,22 +435,25 @@ impl Query {
             quote! {
                 macro_rules! #macro_name {
                     ($structof: expr) => {{
-                        let phantom_data = ::ecs::Storage::phantom_data(&$structof.inner #get_phantom_data);
+                        #[allow(unused_imports)]
+                        use ::ecs::Storage; // Might (or not) be used for phantom data
+                        let phantom_data = $structof.inner #get_phantom_data.phantom_data();
                         let components = ::ecs::query_components!(
                             $structof.inner,
                             #query_components_name,
                             (#(#fields),*),
                             { phantom_data }
                         );
-                        <#query_name as ::ecs::StructQuery<_>>::query(components)
+                        <#query_mutable_name as ::ecs::StructQuery<_>>::query(components)
                     }}
                 }
             }
         };
 
         let mut generated = TokenStream::new();
-        generated.append_all(struct_query);
+        generated.append_all(query_mutable);
         generated.append_all(query_readonly);
+        generated.append_all(struct_query);
         generated.append_all(components);
         generated.append_all(query_components);
         generated.append_all(query_macro);
