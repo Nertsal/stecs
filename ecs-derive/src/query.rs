@@ -253,8 +253,13 @@ impl Query {
                 .iter()
                 .map(|field| {
                     let name = &field.name;
-                    let ty = &field.ty;
-                    quote! { #name: &'a #ty, }
+                    let ty = &field.ty_qualified;
+                    match field.owner {
+                        FieldOwner::Owned => quote! { #name: #ty, },
+                        FieldOwner::Borrowed => {
+                            quote! { #name: &'a #ty, }
+                        }
+                    }
                 })
                 .collect::<Vec<_>>();
 
