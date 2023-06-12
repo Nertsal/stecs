@@ -178,7 +178,7 @@ fn main() {
         #[derive(StructQuery, Debug)]
         struct UnitRef<'a> {
             #[query(nested)]
-            unit: &'a Unit,
+            unit: &'a mut Unit,
         }
 
         println!();

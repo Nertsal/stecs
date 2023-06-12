@@ -159,6 +159,10 @@ impl Struct {
                 #vis struct #struct_ref_mut_name<'a> {
                     #(#fields)*
                 }
+
+                impl #struct_ref_mut_name<'_> {
+                    #struct_cloned
+                }
             }
         };
 

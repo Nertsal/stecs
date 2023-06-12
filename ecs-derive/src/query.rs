@@ -36,7 +36,9 @@ struct Field {
     owner: FieldOwner,
     is_mutable: bool,
     ty: syn::Type,
+    ty_readonly: syn::Type,
     ty_qualified: syn::Type,
+    ty_qualified_readonly: syn::Type,
     storage_type: syn::Type,
     storage: Optic,
     component: Optic,
@@ -84,38 +86,49 @@ impl TryFrom<QueryOpts> for Query {
                     return Err(ParseError::FieldNotRef { name });
                 };
                 let is_mutable = refer.mutability.is_some();
-                let (ty, ty_qualified, owner, storage_type) = if field.nested.is_none() {
-                    (
-                        (*refer.elem).clone(),
-                        *refer.elem,
-                        FieldOwner::Borrowed,
-                        field
-                            .component
-                            .clone()
-                            .map(|ty| syn::Type::Verbatim(quote! { F::Storage<#ty> })),
-                    )
-                } else {
-                    let ty = *refer.elem;
-                    if is_mutable {
+                let (ty, ty_readonly, ty_qualified, ty_qualified_readonly, owner, storage_type) =
+                    if field.nested.is_none() {
                         (
-                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::RefMut<'_> }),
-                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::RefMut<'a> }),
-                            FieldOwner::Owned,
-                            Some(syn::Type::Verbatim(
-                                quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
-                            )),
+                            (*refer.elem).clone(),
+                            (*refer.elem).clone(),
+                            (*refer.elem).clone(),
+                            *refer.elem,
+                            FieldOwner::Borrowed,
+                            field
+                                .component
+                                .clone()
+                                .map(|ty| syn::Type::Verbatim(quote! { F::Storage<#ty> })),
                         )
                     } else {
-                        (
-                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
-                            syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
-                            FieldOwner::Owned,
-                            Some(syn::Type::Verbatim(
-                                quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
-                            )),
-                        )
-                    }
-                };
+                        let ty = *refer.elem;
+                        if is_mutable {
+                            (
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::StructRef>::RefMut<'_> },
+                                ),
+                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::StructRef>::RefMut<'a> },
+                                ),
+                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
+                                FieldOwner::Owned,
+                                Some(syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
+                                )),
+                            )
+                        } else {
+                            (
+                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
+                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
+                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
+                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
+                                FieldOwner::Owned,
+                                Some(syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
+                                )),
+                            )
+                        }
+                    };
 
                 // Parse the provided optic
                 let (mut storage, mut component) = if let Some(optic) = field.optic {
@@ -168,7 +181,9 @@ impl TryFrom<QueryOpts> for Query {
                     owner,
                     is_mutable,
                     ty,
+                    ty_readonly,
                     ty_qualified,
+                    ty_qualified_readonly,
                     storage_type,
                     storage,
                     component,
@@ -253,7 +268,7 @@ impl Query {
                 .iter()
                 .map(|field| {
                     let name = &field.name;
-                    let ty = &field.ty_qualified;
+                    let ty = &field.ty_qualified_readonly;
                     match field.owner {
                         FieldOwner::Owned => quote! { #name: #ty, },
                         FieldOwner::Borrowed => {
@@ -330,7 +345,7 @@ impl Query {
                 .map(|field| {
                     let name = &field.name;
                     let access = field.component.access();
-                    let ty = &field.ty;
+                    let ty = &field.ty_readonly;
                     let ty = if let FieldOwner::Owned = field.owner {
                         quote! { #ty }
                     } else {
