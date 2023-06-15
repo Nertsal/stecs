@@ -51,14 +51,6 @@ impl<T> Storage<T> for HashStorage<T> {
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         self.inner.remove(&id)
     }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = (Self::Id, &T)> + '_> {
-        Box::new(self.inner.iter().map(|(&id, v)| (id, v)))
-    }
-
-    fn iter_mut(&mut self) -> Box<dyn Iterator<Item = (Self::Id, &mut T)> + '_> {
-        Box::new(self.inner.iter_mut().map(|(&id, v)| (id, v)))
-    }
 }
 
 pub struct HashFamily;

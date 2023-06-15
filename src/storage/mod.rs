@@ -16,8 +16,6 @@ pub trait Storage<T>: Default {
     fn get(&self, id: Self::Id) -> Option<&T>;
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;
     fn remove(&mut self, id: Self::Id) -> Option<T>;
-    fn iter(&self) -> Box<dyn Iterator<Item = (Self::Id, &T)> + '_>;
-    fn iter_mut(&mut self) -> Box<dyn Iterator<Item = (Self::Id, &mut T)> + '_>;
 }
 
 /// A family of storages for different component types.
