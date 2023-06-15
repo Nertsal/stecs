@@ -1,4 +1,7 @@
-use crate::{SplitFields, Storage, StorageFamily, StructOfAble};
+use crate::{
+    archetype::{SplitFields, StructOfAble},
+    storage::{Storage, StorageFamily},
+};
 
 pub use generational_arena::{Arena, Index};
 

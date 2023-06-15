@@ -124,7 +124,7 @@ impl QueryOpts {
 
         let image = self.image;
         quote! {{
-            use ::ecs::Storage;
+            use ::ecs::storage::Storage;
             #image {
                 #(#fields)*
             }

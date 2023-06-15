@@ -6,14 +6,14 @@ use quote::{quote, TokenStreamExt};
 
 #[derive(FromDeriveInput)]
 #[darling(supports(struct_named))]
-pub struct StructOpts {
+pub struct SplitOpts {
     ident: syn::Ident,
     vis: syn::Visibility,
     data: ast::Data<(), FieldOpts>,
 }
 
 #[derive(FromField)]
-#[darling(attributes(structof))]
+#[darling(attributes(split))]
 struct FieldOpts {
     ident: Option<syn::Ident>,
     ty: syn::Type,
@@ -40,10 +40,10 @@ enum ParseError {
     NamelessField,
 }
 
-impl TryFrom<StructOpts> for Struct {
+impl TryFrom<SplitOpts> for Struct {
     type Error = ParseError;
 
-    fn try_from(value: StructOpts) -> Result<Self, Self::Error> {
+    fn try_from(value: SplitOpts) -> Result<Self, Self::Error> {
         let fields = value
             .data
             .take_struct()
@@ -68,7 +68,7 @@ impl TryFrom<StructOpts> for Struct {
     }
 }
 
-impl StructOpts {
+impl SplitOpts {
     pub fn derive(self) -> TokenStream {
         let query = Struct::try_from(self).unwrap_or_else(|err| panic!("{err}"));
         query.derive()
@@ -115,7 +115,7 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::StructRef>::Ref<'a> }
+                        quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'a> }
                     } else {
                         quote! { &'a #ty }
                     };
@@ -146,7 +146,7 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::StructRef>::RefMut<'a> }
+                        quote! { <#ty as ::ecs::archetype::StructRef>::RefMut<'a> }
                     } else {
                         quote! { &'a mut #ty }
                     };
@@ -167,13 +167,13 @@ impl Struct {
         };
 
         let struct_split_fields = quote! {
-            impl<F: ::ecs::StorageFamily> ::ecs::SplitFields<F> for #struct_name {
+            impl<F: ::ecs::storage::StorageFamily> ::ecs::archetype::SplitFields<F> for #struct_name {
                 type StructOf = #struct_of_name<F>;
             }
         };
 
         let struct_ref_impl = quote! {
-            impl ::ecs::StructRef for #struct_name {
+            impl ::ecs::archetype::StructRef for #struct_name {
                 type Ref<'a> = #struct_ref_name<'a>;
                 type RefMut<'a> = #struct_ref_mut_name<'a>;
             }
@@ -186,7 +186,7 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::SplitFields<F>>::StructOf }
+                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf }
                     } else {
                         quote! { F::Storage<#ty> }
                     };
@@ -197,7 +197,7 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                #vis struct #struct_of_name<F: ::ecs::StorageFamily> {
+                #vis struct #struct_of_name<F: ::ecs::storage::StorageFamily> {
                     #(#fields)*
                 }
             }
@@ -209,7 +209,7 @@ impl Struct {
                 .map(|field| {
                     let ty = &field.ty;
                     if field.nested {
-                        quote! { <#ty as ::ecs::SplitFields<F>>::StructOf: Clone }
+                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf: Clone }
                     } else {
                         quote! { F::Storage<#ty>: Clone }
                     }
@@ -222,7 +222,7 @@ impl Struct {
             });
 
             quote! {
-                impl<F: ::ecs::StorageFamily> Clone for #struct_of_name<F>
+                impl<F: ::ecs::storage::StorageFamily> Clone for #struct_of_name<F>
                 where
                     #(#constraints),*
                 {
@@ -271,35 +271,35 @@ impl Struct {
             });
 
             quote! {
-                impl<F: ::ecs::StorageFamily> #struct_of_name<F> {
+                impl<F: ::ecs::storage::StorageFamily> #struct_of_name<F> {
                     pub fn phantom_data(&self, ) -> ::std::marker::PhantomData<F> {
                         ::std::default::Default::default()
                     }
 
                     pub fn get(&self, id: F::Id) -> Option<#struct_ref_name<'_>> {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #(#get)*
                     }
 
                     pub fn get_mut(&mut self, id: F::Id) -> Option<#struct_ref_mut_name<'_>> {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #(#get_mut)*
                     }
 
                     // TODO: impl IntoIterator
                     pub fn into_iter(mut self) -> impl Iterator<Item = (F::Id, #struct_name)> where F: 'static {
-                        use ::ecs::Archetype;
+                        use ::ecs::archetype::Archetype;
                         self.ids().filter_map(move |id| self.remove(id).map(move |item| (id, item)))
                     }
 
                     pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_>)> {
-                        use ::ecs::Archetype;
+                        use ::ecs::archetype::Archetype;
                         self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
                     // TODO
                     // pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a>)> + 'a {
-                    //     use ::ecs::Archetype;
+                    //     use ::ecs::archetype::Archetype;
                     //     self.ids().filter_map(|id| self.get_mut(id).map(move |item| (id, item)))
                     // }
                 }
@@ -347,18 +347,18 @@ impl Struct {
                 .expect("Expected at least one field");
 
             quote! {
-                impl<F: ::ecs::StorageFamily> ::ecs::Archetype<F> for #struct_of_name<F> {
+                impl<F: ::ecs::storage::StorageFamily> ::ecs::archetype::Archetype<F> for #struct_of_name<F> {
                     type Item = #struct_name;
                     fn ids(&self) -> F::IdIter {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #ids
                     }
                     fn insert(&mut self, value: Self::Item) -> F::Id {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #(#insert)*
                     }
                     fn remove(&mut self, id: F::Id) -> Option<Self::Item> {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #(#remove)*
                     }
                 }
@@ -377,7 +377,7 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                impl<F: ::ecs::StorageFamily> Default for #struct_of_name<F> {
+                impl<F: ::ecs::storage::StorageFamily> Default for #struct_of_name<F> {
                     fn default() -> Self {
                         Self {
                             #(#fields),*

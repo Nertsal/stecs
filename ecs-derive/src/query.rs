@@ -104,27 +104,39 @@ impl TryFrom<QueryOpts> for Query {
                         if is_mutable {
                             (
                                 syn::Type::Verbatim(
-                                    quote! { <#ty as ::ecs::StructRef>::RefMut<'_> },
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::RefMut<'_> },
                                 ),
-                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
                                 syn::Type::Verbatim(
-                                    quote! { <#ty as ::ecs::StructRef>::RefMut<'a> },
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'_> },
                                 ),
-                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::RefMut<'a> },
+                                ),
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'a> },
+                                ),
                                 FieldOwner::Owned,
                                 Some(syn::Type::Verbatim(
-                                    quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
+                                    quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf },
                                 )),
                             )
                         } else {
                             (
-                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
-                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'_> }),
-                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
-                                syn::Type::Verbatim(quote! { <#ty as ::ecs::StructRef>::Ref<'a> }),
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'_> },
+                                ),
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'_> },
+                                ),
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'a> },
+                                ),
+                                syn::Type::Verbatim(
+                                    quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'a> },
+                                ),
                                 FieldOwner::Owned,
                                 Some(syn::Type::Verbatim(
-                                    quote! { <#ty as ::ecs::SplitFields<F>>::StructOf },
+                                    quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf },
                                 )),
                             )
                         }
@@ -292,7 +304,7 @@ impl Query {
 
         // impl StructQuery
         let struct_query = quote! {
-            impl<'b, F: ::ecs::StorageFamily + 'static> ::ecs::StructQuery<F> for #query_mutable_name<'b> {
+            impl<'b, F: ::ecs::storage::StorageFamily + 'static> ::ecs::query::StructQuery<F> for #query_mutable_name<'b> {
                 type Components<'a> = #query_components_name<'a, F>;
             }
         };
@@ -314,7 +326,7 @@ impl Query {
                 .collect::<Vec<_>>();
 
             quote! {
-                struct #query_components_name<'a, F: ::ecs::StorageFamily + 'a> {
+                struct #query_components_name<'a, F: ::ecs::storage::StorageFamily + 'a> {
                     phantom_data: ::std::marker::PhantomData<F>,
                     #(#fields)*
                 }
@@ -396,19 +408,19 @@ impl Query {
             });
 
             quote! {
-                impl<'b, F: ::ecs::StorageFamily> ::ecs::QueryComponents<F> for #query_components_name<'b, F> {
+                impl<'b, F: ::ecs::storage::StorageFamily> ::ecs::query::QueryComponents<F> for #query_components_name<'b, F> {
                     type Item<'a> = #query_mutable_name<'a> where Self: 'a;
                     type ItemReadOnly<'a> = #query_readonly_name<'a> where Self: 'a;
                     fn ids(&self) -> F::IdIter {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #ids
                     }
                     fn get(&self, id: F::Id) -> Option<Self::ItemReadOnly<'_>> {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #(#get)*
                     }
                     fn get_mut(&mut self, id: F::Id) -> Option<Self::Item<'_>> {
-                        use ::ecs::Storage;
+                        use ::ecs::storage::Storage;
                         #(#get_mut)*
                     }
                 }
@@ -456,7 +468,7 @@ impl Query {
                 macro_rules! #macro_name {
                     ($structof: expr) => {{
                         #[allow(unused_imports)]
-                        use ::ecs::Storage; // Might (or not) be used for phantom data
+                        use ::ecs::storage::Storage; // Might (or not) be used for phantom data
                         let phantom_data = $structof.inner #get_phantom_data.phantom_data();
                         let components = ::ecs::query_components!(
                             $structof.inner,
@@ -464,7 +476,7 @@ impl Query {
                             (#(#fields),*),
                             { phantom_data }
                         );
-                        <#query_mutable_name as ::ecs::StructQuery<_>>::query(components)
+                        <#query_mutable_name as ::ecs::query::StructQuery<_>>::query(components)
                     }}
                 }
             }

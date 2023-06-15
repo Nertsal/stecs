@@ -6,12 +6,12 @@ use darling::{
 mod components;
 mod optic;
 mod query;
-mod struct_of;
+mod split;
 
-#[proc_macro_derive(StructOf, attributes(structof))]
-pub fn derive_struct_of(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_derive(SplitFields, attributes(split))]
+pub fn derive_split_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: syn::DeriveInput = syn::parse_macro_input!(input);
-    match struct_of::StructOpts::from_derive_input(&input) {
+    match split::SplitOpts::from_derive_input(&input) {
         Ok(input) => input.derive().into(),
         Err(e) => e.write_errors().into(),
     }

@@ -9,7 +9,7 @@ struct GameWorld {
     particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
 }
 
-#[derive(StructOf, Debug, Clone)]
+#[derive(SplitFields, Debug, Clone)]
 struct Unit {
     // id: Id,
     pos: (f32, f32),
@@ -18,16 +18,16 @@ struct Unit {
     damage: Option<f32>,
 }
 
-#[derive(StructOf, Debug)]
+#[derive(SplitFields, Debug)]
 struct Corpse {
     // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
     // But you can still access the whole `Unit` as a single component.
-    #[structof(nested)]
+    #[split(nested)]
     unit: Unit,
     time: f32,
 }
 
-#[derive(StructOf, Debug)]
+#[derive(SplitFields, Debug)]
 struct Particle {
     pos: (f32, f32),
     time: f32,
