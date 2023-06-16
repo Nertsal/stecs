@@ -55,6 +55,16 @@ impl Optic {
     //     }
     // }
 
+    /// Whether the optic can fail to find the value.
+    fn is_optional(&self) -> bool {
+        match self {
+            Optic::Id => false,
+            Optic::Field { optic, .. } => optic.is_optional(),
+            Optic::Some(_) => true,
+            Optic::Get(_) => true,
+        }
+    }
+
     /// Access the target component immutably.
     pub fn access(&self, id: &syn::Expr, source: TokenStream) -> TokenStream {
         self.access_impl(false, id, source)
@@ -71,36 +81,46 @@ impl Optic {
             Optic::Field { name, optic } => optic.access_impl(is_mut, id, quote! { #source.#name }),
             Optic::Some(optic) => {
                 let access_value = optic.access_impl(is_mut, id, quote! { value });
+                let access_value = if optic.is_optional() {
+                    access_value
+                } else {
+                    quote! { Some(#access_value) }
+                };
                 if is_mut {
                     quote! {
                         match #source.as_mut() {
                             None => None,
-                            Some(value) => Some(#access_value)
+                            Some(value) => { #access_value }
                         }
                     }
                 } else {
                     quote! {
                         match #source.as_ref() {
                             None => None,
-                            Some(value) => Some(#access_value)
+                            Some(value) => { #access_value }
                         }
                     }
                 }
             }
             Optic::Get(optic) => {
                 let access_value = optic.access_impl(is_mut, id, quote! { value });
+                let access_value = if optic.is_optional() {
+                    access_value
+                } else {
+                    quote! { Some(#access_value) }
+                };
                 if is_mut {
                     quote! {
                         match #source.get_mut(#id) {
                             None => None,
-                            Some(value) => Some(#access_value)
+                            Some(value) => { #access_value }
                         }
                     }
                 } else {
                     quote! {
                         match #source.get(#id) {
                             None => None,
-                            Some(value) => Some(#access_value)
+                            Some(value) => { #access_value }
                         }
                     }
                 }
