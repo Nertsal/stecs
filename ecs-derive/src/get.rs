@@ -36,12 +36,14 @@ enum ImageOpts {
 struct StructFieldOpts {
     /// The name of the field/component.
     name: syn::Ident,
+    is_mut: bool,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage or optional components.
     optic: Optic,
 }
 
 #[derive(Debug)]
 struct TupleFieldOpts {
+    is_mut: bool,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
     optic: Optic,
 }
@@ -94,6 +96,8 @@ impl Parse for StorageGetOpts {
 
 impl Parse for StructFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let is_mut: Option<syn::Token![mut]> = input.parse()?;
+
         let name: syn::Ident = input.parse()?;
 
         let optic = if input.parse::<Option<syn::Token![:]>>()?.is_some() {
@@ -105,7 +109,11 @@ impl Parse for StructFieldOpts {
             }
         };
 
-        Ok(Self { name, optic })
+        Ok(Self {
+            name,
+            is_mut: is_mut.is_some(),
+            optic,
+        })
     }
 }
 
@@ -116,8 +124,12 @@ impl Parse for StructFieldOpts {
 
 impl Parse for TupleFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let is_mut: Option<syn::Token![mut]> = input.parse()?;
         let optic: Optic = input.parse()?;
-        Ok(Self { optic })
+        Ok(Self {
+            is_mut: is_mut.is_some(),
+            optic,
+        })
     }
 }
 
@@ -133,10 +145,10 @@ impl StorageGetOpts {
         // }
 
         // field: optic
-        let fields: Vec<(syn::Ident, Optic)> = match &self.image {
+        let fields: Vec<(syn::Ident, bool, Optic)> = match &self.image {
             ImageOpts::Struct { fields, .. } => fields
                 .iter()
-                .map(|field| (field.name.clone(), field.optic.clone()))
+                .map(|field| (field.name.clone(), field.is_mut, field.optic.clone()))
                 .collect(),
             ImageOpts::Tuple { fields } => fields
                 .iter()
@@ -144,12 +156,15 @@ impl StorageGetOpts {
                 .map(|(i, field)| {
                     let name =
                         syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site());
-                    (name, field.optic.clone())
+                    (name, field.is_mut, field.optic.clone())
                 })
                 .collect(),
         };
 
-        let field_names: Vec<_> = fields.iter().map(|(name, _)| quote! { #name, }).collect();
+        let field_names: Vec<_> = fields
+            .iter()
+            .map(|(name, _, _)| quote! { #name, })
+            .collect();
 
         let mut get_fields = match self.image {
             ImageOpts::Struct { ident, .. } => quote! { Some(#ident { #(#field_names)* }) }, // struct
@@ -158,8 +173,13 @@ impl StorageGetOpts {
 
         let storage = &self.struct_of;
         let id = &self.id;
-        for (name, optic) in fields.iter().rev() {
-            let component = optic.access(id, quote! { #storage });
+        for (name, is_mut, optic) in fields.into_iter().rev() {
+            // TODO: maybe handle `inner` better
+            let component = if is_mut {
+                optic.access_mut(id, quote! { #storage.inner })
+            } else {
+                optic.access(id, quote! { #storage.inner })
+            };
             get_fields = quote! {
                 match #component {
                     None => None,

@@ -97,6 +97,7 @@ fn main() {
         //     println!("{item:?}");
         // }
 
+        // Declare a view struct to query into
         #[derive(Debug)]
         struct UnitRef<'a> {
             pos: &'a (f32, f32),
@@ -110,6 +111,7 @@ fn main() {
             println!("{:?}, {:?}", pos, tick);
         }
 
+        // Or just query into a tuple
         println!("\nQuerying into a tuple:");
         for id in world.units.ids() {
             let item = get!(world.units, id, (pos, tick));
@@ -124,47 +126,41 @@ fn main() {
         for id in world.units.ids() {
             let item = get!(world.units, id, (health, damage.Get.Some));
             let Some((health, damage)) = item else { continue };
+            // Now we get access to units which have health *and* damage
             println!("{:?}, {:?}", health, damage);
         }
     }
 
-    // // Splitting mutable access to components
-    // {
-    //     #[derive(StructQuery, Debug)]
-    //     struct HealthRef<'a> {
-    //         health: &'a mut f32,
-    //     }
+    // Splitting mutable access to components
+    {
+        // Iterate mutably over all units' healths
+        println!("\nHealths:");
+        let ids = world.units.ids();
+        for &id in &ids {
+            let item = get!(world.units, id, (mut health));
+            let Some((health,)) = item else { continue };
+            println!("Updating {health:?}");
 
-    //     #[derive(StructQuery, Debug)]
-    //     struct TickRef<'a> {
-    //         tick: &'a mut usize,
-    //     }
+            // Iterate mutably over all units' ticks
+            println!("  Inner query over ticks:");
+            for &id in &ids {
+                let item = get!(world.units, id, (mut tick));
+                let Some((tick,)) = item else { continue };
+                println!("  Incrementing {tick:?}");
+                *tick += 1;
+            }
 
-    //     // Iterate mutably over all units' healths
-    //     println!("\nHealths:");
-    //     let mut query = query_health_ref!(world.units);
-    //     let mut iter = query.iter_mut();
-    //     while let Some((_, health)) = iter.next() {
-    //         println!("Updating {health:?}");
+            *health -= 5.0;
+        }
 
-    //         // Iterate mutably over all units' ticks
-    //         println!("  Inner query over ticks:");
-    //         let mut query = query_tick_ref!(world.units);
-    //         let mut iter = query.iter_mut();
-    //         while let Some((_, tick)) = iter.next() {
-    //             println!("  Incrementing {tick:?}");
-    //             *tick.tick += 1;
-    //         }
-
-    //         *health.health -= 5.0;
-    //     }
-
-    //     // Iterate over all units' healths again
-    //     println!("\nUpdated healths");
-    //     for health in &query_health_ref!(world.units) {
-    //         println!("{health:?}");
-    //     }
-    // }
+        // Iterate over all units' healths again
+        println!("\nUpdated healths");
+        for id in ids {
+            let item = get!(world.units, id, (health));
+            let Some((health,)) = item else { continue };
+            println!("{:?}", health);
+        }
+    }
 
     // // Query multiple entity types at the same time
     // {
@@ -197,9 +193,9 @@ fn main() {
         // }
 
         for id in world.corpses.ids() {
-            let item = get!(world.corpses, id, (unit.tick));
-            let Some((tick,)) = item else { continue };
-            println!("{:?}", tick);
+            let item = get!(world.corpses, id, (unit.tick, mut time));
+            let Some((tick, time)) = item else { continue };
+            println!("{:?}, {:?}", tick, time);
         }
     }
 
