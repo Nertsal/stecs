@@ -116,39 +116,17 @@ fn main() {
             let Some((pos, tick)) = item else { continue };
             println!("{:?}, {:?}", pos, tick);
         }
-
-        // for id in world.units.ids() {
-        //     let item = match world.units.inner.pos.get(id) {
-        //         None => None,
-        //         Some(pos) => world
-        //             .units
-        //             .inner
-        //             .tick
-        //             .get(id)
-        //             .map(|tick| structx! { pos, tick }),
-        //     };
-        //     let Some(item) = item else {
-        //         continue;
-        //     };
-        //     println!("{item:?}");
-        // }
     }
 
-    // // Query an optional field
-    // {
-    //     #[derive(StructQuery, Debug)]
-    //     struct HealthDamageRef<'a> {
-    //         health: &'a f32,
-    //         // query from a component of type `Option<f32>` with value `Some(damage)`
-    //         #[query(optic = "._Some")]
-    //         damage: &'a f32,
-    //     }
-
-    //     println!("\nHealth with damage:");
-    //     for item in &query_health_damage_ref!(world.units) {
-    //         println!("{item:?}");
-    //     }
-    // }
+    // Query an optional field
+    {
+        println!("\nHealth with damage:");
+        for id in world.units.ids() {
+            let item = get!(world.units, id, (health, damage.Get.Some));
+            let Some((health, damage)) = item else { continue };
+            println!("{:?}, {:?}", health, damage);
+        }
+    }
 
     // // Splitting mutable access to components
     // {
@@ -203,21 +181,27 @@ fn main() {
     //     }
     // }
 
-    // // Query from a nested storage
-    // {
-    //     #[derive(StructQuery, Debug)]
-    //     struct TickRef<'a> {
-    //         #[query(storage = ".unit")] // same as `optic = ".unit.tick._get"`
-    //         tick: &'a usize,
-    //         time: &'a mut f32,
-    //     }
+    // Query from a nested storage
+    {
+        // #[derive(StructQuery, Debug)]
+        // struct TickRef<'a> {
+        //     #[query(storage = ".unit")] // same as `optic = ".unit.tick._get"`
+        //     tick: &'a usize,
+        //     time: &'a mut f32,
+        // }
 
-    //     println!();
-    //     let corpses = query_tick_ref!(world.corpses);
-    //     for tick in corpses.values() {
-    //         println!("{tick:?}");
-    //     }
-    // }
+        println!();
+        // let corpses = query_tick_ref!(world.corpses);
+        // for tick in corpses.values() {
+        //     println!("{tick:?}");
+        // }
+
+        for id in world.corpses.ids() {
+            let item = get!(world.corpses, id, (unit.tick));
+            let Some((tick,)) = item else { continue };
+            println!("{:?}", tick);
+        }
+    }
 
     // // Query the whole nested storage
     // {

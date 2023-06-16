@@ -1,3 +1,5 @@
+use crate::optic::Optic;
+
 use darling::export::syn::{
     self, braced, parenthesized,
     parse::{Parse, ParseStream},
@@ -34,14 +36,14 @@ enum ImageOpts {
 struct StructFieldOpts {
     /// The name of the field/component.
     name: syn::Ident,
-    /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
-    optic: syn::Expr,
+    /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage or optional components.
+    optic: Optic,
 }
 
 #[derive(Debug)]
 struct TupleFieldOpts {
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
-    optic: syn::Expr,
+    optic: Optic,
 }
 
 // get!(units, id, { pos, tick })
@@ -62,8 +64,8 @@ impl Parse for StorageGetOpts {
                 let fields;
                 braced!(fields in input);
 
-                let fields: Punctuated<StructFieldOpts, syn::Token![,]> =
-                    fields.parse_terminated(StructFieldOpts::parse)?;
+                let fields =
+                    Punctuated::<StructFieldOpts, syn::Token![,]>::parse_terminated(&fields)?;
                 ImageOpts::Struct { ident, fields }
             }
             None => {
@@ -95,9 +97,12 @@ impl Parse for StructFieldOpts {
         let name: syn::Ident = input.parse()?;
 
         let optic = if input.parse::<Option<syn::Token![:]>>()?.is_some() {
-            input.parse::<syn::Expr>()?
+            input.parse::<Optic>()?
         } else {
-            syn::Expr::Verbatim(quote! { #name })
+            Optic::Field {
+                name: name.clone(),
+                optic: Box::new(Optic::Get(Box::new(Optic::Id))),
+            }
         };
 
         Ok(Self { name, optic })
@@ -111,7 +116,7 @@ impl Parse for StructFieldOpts {
 
 impl Parse for TupleFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let optic = input.parse::<syn::Expr>()?;
+        let optic: Optic = input.parse()?;
         Ok(Self { optic })
     }
 }
@@ -128,7 +133,7 @@ impl StorageGetOpts {
         // }
 
         // field: optic
-        let fields: Vec<(syn::Ident, syn::Expr)> = match &self.image {
+        let fields: Vec<(syn::Ident, Optic)> = match &self.image {
             ImageOpts::Struct { fields, .. } => fields
                 .iter()
                 .map(|field| (field.name.clone(), field.optic.clone()))
@@ -144,19 +149,19 @@ impl StorageGetOpts {
                 .collect(),
         };
 
-        let field_names: Vec<_> = fields.iter().map(|(name, _)| name).collect();
+        let field_names: Vec<_> = fields.iter().map(|(name, _)| quote! { #name, }).collect();
 
         let mut get_fields = match self.image {
-            ImageOpts::Struct { ident, .. } => quote! { Some(#ident { #(#field_names),* }) }, // struct
-            ImageOpts::Tuple { .. } => quote! { Some(( #(#field_names),* )) }, // tuple
+            ImageOpts::Struct { ident, .. } => quote! { Some(#ident { #(#field_names)* }) }, // struct
+            ImageOpts::Tuple { .. } => quote! { Some(( #(#field_names)* )) }, // tuple
         };
 
         let storage = &self.struct_of;
         let id = &self.id;
         for (name, optic) in fields.iter().rev() {
-            let storage = quote! { #storage.#optic };
+            let component = optic.access(id, quote! { #storage });
             get_fields = quote! {
-                match #storage.get(#id) {
+                match #component {
                     None => None,
                     Some(#name) => { #get_fields }
                 }

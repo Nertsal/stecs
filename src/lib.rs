@@ -5,7 +5,7 @@
 //   - component storages
 //     - component values (the actual data)
 
-pub use ecs_derive::{query_components, storage_get, SplitFields, StructQuery};
+pub use ecs_derive::{query_components, storage_get, SplitFields};
 
 pub mod archetype;
 #[cfg(feature = "arena")]
@@ -21,5 +21,5 @@ pub mod prelude {
         // query::StructQuery,
         storage::{Storage, StorageFamily},
     };
-    pub use ecs_derive::{storage_get as get, SplitFields, StructQuery};
+    pub use ecs_derive::{storage_get as get, SplitFields};
 }
