@@ -11,11 +11,11 @@ use quote::quote;
 #[derive(Debug)]
 pub struct StorageGetOpts {
     /// The structure of storages to query components from.
-    struct_of: syn::Expr,
+    pub struct_of: syn::Expr,
     /// Id of the entity to access.
-    id: syn::Expr,
+    pub id: syn::Expr,
     /// The image (struct or tuple) to collect the components into.
-    image: ImageOpts,
+    pub image: ImageOpts,
 }
 
 #[derive(Debug)]
@@ -36,14 +36,14 @@ pub enum ImageOpts {
 pub struct StructFieldOpts {
     /// The name of the field/component.
     name: syn::Ident,
-    is_mut: bool,
+    pub is_mut: bool,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage or optional components.
     optic: Optic,
 }
 
 #[derive(Debug)]
 pub struct TupleFieldOpts {
-    is_mut: bool,
+    pub is_mut: bool,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
     optic: Optic,
 }

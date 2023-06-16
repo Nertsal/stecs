@@ -42,7 +42,7 @@ fn main() {
         particles: StructOf::new(),
     };
 
-    world.units.insert(Unit {
+    let player_id = world.units.insert(Unit {
         pos: (0.0, 0.0),
         health: 10.0,
         tick: 7,
@@ -105,25 +105,20 @@ fn main() {
         }
 
         println!("\nQuerying into a struct:");
-        // for unit in query!(world.units, UnitRef { pos, tick }) {
-        //     println!("{:?}", unit);
-        // }
-        let query = {
-            // let components = (&world.units.inner.pos, &world.units.inner.tick);
-            let components = (&world.units.inner.pos, Default::default());
-            Query::new(components)
-        };
-
-        for unit in query.iter() {
+        for unit in query!(world.units, UnitRef { pos, tick }) {
             println!("{:?}", unit);
         }
 
         // Or just query into a tuple
         println!("\nQuerying into a tuple:");
-        for id in world.units.ids() {
-            let item = get!(world.units, id, (pos, tick));
-            let Some((pos, tick)) = item else { continue };
-            println!("{:?}, {:?}", pos, tick);
+        for unit in query!(world.units, (pos, tick)) {
+            println!("{:?}", unit);
+        }
+
+        // Query a single entity
+        println!("\nSingle entity:");
+        if let Some(player) = get!(world.units, player_id, (pos, tick)) {
+            println!("{:?}", player);
         }
     }
 

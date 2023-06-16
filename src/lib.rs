@@ -12,13 +12,11 @@ pub mod archetype;
 pub mod arena;
 #[cfg(feature = "hashstorage")]
 pub mod hashstorage;
-pub mod query;
 pub mod storage;
 
 pub mod prelude {
     pub use crate::{
         archetype::{Archetype, SplitFields, StructOf, StructOfAble},
-        query::Query,
         storage::{Storage, StorageFamily},
     };
     pub use ecs_derive::{storage_get as get, storage_query as query, SplitFields};
