@@ -55,6 +55,16 @@ fn main() {
         damage: Some(1.5),
     });
 
+    world.corpses.insert(Corpse {
+        unit: Unit {
+            pos: (-4.0, 3.0),
+            health: 0.0,
+            tick: 10,
+            damage: None,
+        },
+        time: 1.0,
+    });
+
     for _ in 0..3 {
         world.particles.insert(Particle {
             pos: (1.0, -0.5),
@@ -76,26 +86,7 @@ fn main() {
 
     // Query fields
     {
-        // #[derive(StructQuery, Debug)]
-        // struct PosTickRef<'a> {
-        //     pos: &'a (f32, f32),
-        //     tick: &'a usize,
-        // }
-
         println!("\nPosition with tick:");
-        // for item in &query_pos_tick_ref!(world.units) {
-        //     println!("{item:?}");
-        // }
-        // for item in &storage_zip!(world.units, { pos, tick }) {
-        //     println!("{item:?}");
-        // }
-        // for item in world.units.ids().filter_map(|id| {
-        //     let pos = world.units.inner.pos.get(id)?;
-        //     let tick = world.units.inner.tick.get(id)?;
-        //     Some(structx! { pos, tick })
-        // }) {
-        //     println!("{item:?}");
-        // }
 
         // Declare a view struct to query into
         #[derive(Debug)]
@@ -125,11 +116,9 @@ fn main() {
     // Query an optional field
     {
         println!("\nHealth with damage:");
-        for id in world.units.ids() {
-            let item = get!(world.units, id, (health, damage.Get.Some));
-            let Some((health, damage)) = item else { continue };
+        for unit in query!(world.units, (health, damage.Get.Some)) {
             // Now we get access to units which have health *and* damage
-            println!("{:?}, {:?}", health, damage);
+            println!("{:?}", unit);
         }
     }
 
@@ -139,15 +128,14 @@ fn main() {
         println!("\nHealths:");
         let ids = world.units.ids();
         for &id in &ids {
-            let item = get!(world.units, id, (mut health));
-            let Some((health,)) = item else { continue };
+            // Sadly you cant `query!` mutably, so you have to manually iterate over id's and `get!` each entity
+            let (health,) = get!(world.units, id, (mut health)).unwrap();
             println!("Updating {health:?}");
 
             // Iterate mutably over all units' ticks
             println!("  Inner query over ticks:");
             for &id in &ids {
-                let item = get!(world.units, id, (mut tick));
-                let Some((tick,)) = item else { continue };
+                let (tick,) = get!(world.units, id, (mut tick)).unwrap();
                 println!("  Incrementing {tick:?}");
                 *tick += 1;
             }
@@ -158,63 +146,46 @@ fn main() {
         // Iterate over all units' healths again
         println!("\nUpdated healths");
         for id in ids {
-            let item = get!(world.units, id, (health));
-            let Some((health,)) = item else { continue };
+            let (health,) = get!(world.units, id, (health)).unwrap();
             println!("{:?}", health);
         }
     }
 
-    // // Query multiple entity types at the same time
-    // {
-    //     #[derive(StructQuery, Debug)]
-    //     struct PosRef<'a> {
-    //         pos: &'a (f32, f32),
-    //     }
-
-    //     println!();
-    //     let units = query_pos_ref!(world.units);
-    //     let particles = query_pos_ref!(world.particles);
-    //     for pos in units.values().chain(particles.values()) {
-    //         println!("{pos:?}");
-    //     }
-    // }
-
     // Query from a nested storage
     {
-        // #[derive(StructQuery, Debug)]
-        // struct TickRef<'a> {
-        //     #[query(storage = ".unit")] // same as `optic = ".unit.tick._get"`
-        //     tick: &'a usize,
-        //     time: &'a mut f32,
-        // }
-
-        println!();
-        // let corpses = query_tick_ref!(world.corpses);
-        // for tick in corpses.values() {
-        //     println!("{tick:?}");
-        // }
-
-        for id in world.corpses.ids() {
-            let item = get!(world.corpses, id, (unit.tick, mut time));
-            let Some((tick, time)) = item else { continue };
-            println!("{:?}, {:?}", tick, time);
+        println!("\nTicks inside units inside corpses:");
+        // `tick` is located inside `unit`
+        for corpse in query!(world.corpses, (unit.tick)) {
+            println!("{:?}", corpse);
         }
     }
 
-    // // Query the whole nested storage
-    // {
-    //     #[derive(StructQuery, Debug)]
-    //     struct UnitRef<'a> {
-    //         #[query(nested)]
-    //         unit: &'a mut Unit,
-    //     }
+    // Query multiple entity types at the same time
+    {
+        // Declare a view struct to have the same access to both entities
+        #[derive(Debug)]
+        struct PosRef<'a> {
+            pos: &'a (f32, f32),
+        }
 
-    //     println!();
-    //     let corpses = query_unit_ref!(world.corpses);
-    //     for tick in corpses.values() {
-    //         println!("{tick:?}");
-    //     }
-    // }
+        println!("\nPositions of units and corpses:");
+        let units = query!(world.units, PosRef { pos });
+        // And we can have different access patterns for each entity
+        // so we can access the position of the nested unit of the corpse
+        let particles = query!(world.corpses, PosRef { pos: unit.pos });
+
+        for item in units.chain(particles) {
+            println!("{:?}", item);
+        }
+    }
+
+    // Query the whole nested storage
+    {
+        println!("\nNested units:");
+        for item in query!(world.corpses, (unit)) {
+            println!("{:?}", item);
+        }
+    }
 
     println!("\nTaking back ownership of all units:");
     for unit in world.units.inner.into_iter() {
