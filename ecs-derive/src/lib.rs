@@ -6,7 +6,7 @@ use darling::{
 mod components;
 mod get;
 mod optic;
-// mod query;
+mod query;
 mod split;
 // mod zip;
 
@@ -27,6 +27,12 @@ pub fn derive_split_fields(input: proc_macro::TokenStream) -> proc_macro::TokenS
 //         Err(e) => e.write_errors().into(),
 //     }
 // }
+
+#[proc_macro]
+pub fn storage_query(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(tokens as query::QueryOpts);
+    input.query().into()
+}
 
 #[proc_macro]
 pub fn query_components(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {

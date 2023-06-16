@@ -19,7 +19,7 @@ pub struct StorageGetOpts {
 }
 
 #[derive(Debug)]
-enum ImageOpts {
+pub enum ImageOpts {
     Struct {
         /// The image to collect the fields into.
         ident: syn::Ident,
@@ -33,7 +33,7 @@ enum ImageOpts {
 }
 
 #[derive(Debug)]
-struct StructFieldOpts {
+pub struct StructFieldOpts {
     /// The name of the field/component.
     name: syn::Ident,
     is_mut: bool,
@@ -42,7 +42,7 @@ struct StructFieldOpts {
 }
 
 #[derive(Debug)]
-struct TupleFieldOpts {
+pub struct TupleFieldOpts {
     is_mut: bool,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
     optic: Optic,
@@ -58,8 +58,25 @@ impl Parse for StorageGetOpts {
         let id: syn::Expr = input.parse()?;
         let _: syn::Token![,] = input.parse()?;
 
-        let image_struct: Option<syn::Ident> = input.parse()?;
+        let image: ImageOpts = input.parse()?;
 
+        Ok(Self {
+            struct_of,
+            id,
+            image,
+        })
+    }
+}
+
+// Struct variant
+// { pos, tick: body.tick, damage: damage.Get.Some }
+
+// Tuple variant
+// (pos, body.tick, damage.Get.Some)
+
+impl Parse for ImageOpts {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let image_struct: Option<syn::Ident> = input.parse()?;
         let image = match image_struct {
             Some(ident) => {
                 // Struct
@@ -80,19 +97,14 @@ impl Parse for StorageGetOpts {
                 ImageOpts::Tuple { fields }
             }
         };
-
-        Ok(Self {
-            struct_of,
-            id,
-            image,
-        })
+        Ok(image)
     }
 }
 
 // Struct variant
 // pos
 // tick: body.tick
-// damage: damage.Some
+// damage: damage.Get.Some
 
 impl Parse for StructFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -137,11 +149,10 @@ impl StorageGetOpts {
     pub fn get(self) -> TokenStream {
         // match units.inner.pos.get(id) {
         //     None => None,
-        //     Some(pos) => units
-        //         .inner
-        //         .tick
-        //         .get(id)
-        //         .map(|tick| ::structx::structx! { pos, tick }),
+        //     Some(pos) => match units.inner.tick.get(id) {
+        //         None => None,
+        //         Some(tick) => Struct { pos, tick },
+        //     },
         // }
 
         // field: optic

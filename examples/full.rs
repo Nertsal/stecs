@@ -105,10 +105,17 @@ fn main() {
         }
 
         println!("\nQuerying into a struct:");
-        for id in world.units.ids() {
-            let item = get!(world.units, id, UnitRef { pos, tick });
-            let Some(UnitRef {pos, tick}) = item else { continue };
-            println!("{:?}, {:?}", pos, tick);
+        // for unit in query!(world.units, UnitRef { pos, tick }) {
+        //     println!("{:?}", unit);
+        // }
+        let query = {
+            // let components = (&world.units.inner.pos, &world.units.inner.tick);
+            let components = (&world.units.inner.pos, Default::default());
+            Query::new(components)
+        };
+
+        for unit in query.iter() {
+            println!("{:?}", unit);
         }
 
         // Or just query into a tuple
