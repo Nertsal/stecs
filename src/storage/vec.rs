@@ -2,17 +2,18 @@ use crate::archetype::{SplitFields, StructOfAble};
 
 use super::*;
 
+use std::collections::HashSet;
+
 impl<T> Storage<T> for Vec<T> {
     type Family = VecFamily;
     type Id = usize;
-    type IdIter = std::iter::Rev<std::ops::Range<usize>>;
     fn insert(&mut self, value: T) -> Self::Id {
         let id = self.len();
         self.push(value);
         id
     }
-    fn ids(&self) -> Self::IdIter {
-        (0..self.len()).rev()
+    fn ids(&self) -> HashSet<Self::Id> {
+        (0..self.len()).collect()
     }
     fn get(&self, id: Self::Id) -> Option<&T> {
         self.as_slice().get(id)
@@ -29,7 +30,6 @@ pub struct VecFamily;
 
 impl StorageFamily for VecFamily {
     type Id = usize;
-    type IdIter = std::iter::Rev<std::ops::Range<usize>>;
     type Storage<T> = Vec<T>;
 }
 

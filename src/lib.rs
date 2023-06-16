@@ -5,21 +5,21 @@
 //   - component storages
 //     - component values (the actual data)
 
-pub use ecs_derive::{query_components, SplitFields, StructQuery};
+pub use ecs_derive::{query_components, storage_get, SplitFields, StructQuery};
 
 pub mod archetype;
 #[cfg(feature = "arena")]
 pub mod arena;
 #[cfg(feature = "hashstorage")]
 pub mod hashstorage;
-pub mod query;
+// pub mod query;
 pub mod storage;
 
 pub mod prelude {
     pub use crate::{
         archetype::{Archetype, SplitFields, StructOf, StructOfAble},
-        query::StructQuery,
+        // query::StructQuery,
         storage::{Storage, StorageFamily},
     };
-    pub use ecs_derive::{SplitFields, StructQuery};
+    pub use ecs_derive::{storage_get as get, SplitFields, StructQuery};
 }
