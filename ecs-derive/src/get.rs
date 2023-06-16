@@ -12,19 +12,36 @@ pub struct StorageGetOpts {
     struct_of: syn::Expr,
     /// Id of the entity to access.
     id: syn::Expr,
-    /// The image to collect the fields into.
-    /// If `None`, collects into a tuple instead.
-    image_struct: Option<syn::Ident>,
-    /// The fields (or components) to query.
-    fields: Punctuated<FieldOpts, syn::Token![,]>,
+    /// The image (struct or tuple) to collect the components into.
+    image: ImageOpts,
 }
 
 #[derive(Debug)]
-pub struct FieldOpts {
+enum ImageOpts {
+    Struct {
+        /// The image to collect the fields into.
+        ident: syn::Ident,
+        /// The fields (or components) to query.
+        fields: Punctuated<StructFieldOpts, syn::Token![,]>,
+    },
+    Tuple {
+        /// The fields (or components) to query.
+        fields: Punctuated<TupleFieldOpts, syn::Token![,]>,
+    },
+}
+
+#[derive(Debug)]
+struct StructFieldOpts {
     /// The name of the field/component.
     name: syn::Ident,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
-    optic: Option<syn::Expr>,
+    optic: syn::Expr,
+}
+
+#[derive(Debug)]
+struct TupleFieldOpts {
+    /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
+    optic: syn::Expr,
 }
 
 // get!(units, id, { pos, tick })
@@ -39,40 +56,63 @@ impl Parse for StorageGetOpts {
 
         let image_struct: Option<syn::Ident> = input.parse()?;
 
-        let fields;
-        if image_struct.is_some() {
-            braced!(fields in input);
-        } else {
-            parenthesized!(fields in input);
-        };
+        let image = match image_struct {
+            Some(ident) => {
+                // Struct
+                let fields;
+                braced!(fields in input);
 
-        let fields: Punctuated<FieldOpts, syn::Token![,]> =
-            fields.parse_terminated(FieldOpts::parse)?;
+                let fields: Punctuated<StructFieldOpts, syn::Token![,]> =
+                    fields.parse_terminated(StructFieldOpts::parse)?;
+                ImageOpts::Struct { ident, fields }
+            }
+            None => {
+                // Tuple
+                let fields;
+                parenthesized!(fields in input);
+
+                let fields: Punctuated<TupleFieldOpts, syn::Token![,]> =
+                    fields.parse_terminated(TupleFieldOpts::parse)?;
+                ImageOpts::Tuple { fields }
+            }
+        };
 
         Ok(Self {
             struct_of,
-            image_struct,
             id,
-            fields,
+            image,
         })
     }
 }
 
+// Struct variant
 // pos
 // tick: body.tick
 // damage: damage.Some
 
-impl Parse for FieldOpts {
+impl Parse for StructFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let name: syn::Ident = input.parse()?;
 
         let optic = if input.parse::<Option<syn::Token![:]>>()?.is_some() {
-            Some(input.parse::<syn::Expr>()?)
+            input.parse::<syn::Expr>()?
         } else {
-            None
+            syn::Expr::Verbatim(quote! { #name })
         };
 
         Ok(Self { name, optic })
+    }
+}
+
+// Tuple variant is same as struct without the field name
+// pos
+// body.tick
+// damage.Some
+
+impl Parse for TupleFieldOpts {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let optic = input.parse::<syn::Expr>()?;
+        Ok(Self { optic })
     }
 }
 
@@ -87,25 +127,34 @@ impl StorageGetOpts {
         //         .map(|tick| ::structx::structx! { pos, tick }),
         // }
 
-        let fields: Vec<_> = self
-            .fields
-            .iter()
-            .map(|field| {
-                let name = &field.name;
-                quote! { #name }
-            })
-            .collect();
+        // field: optic
+        let fields: Vec<(syn::Ident, syn::Expr)> = match &self.image {
+            ImageOpts::Struct { fields, .. } => fields
+                .iter()
+                .map(|field| (field.name.clone(), field.optic.clone()))
+                .collect(),
+            ImageOpts::Tuple { fields } => fields
+                .iter()
+                .enumerate()
+                .map(|(i, field)| {
+                    let name =
+                        syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site());
+                    (name, field.optic.clone())
+                })
+                .collect(),
+        };
 
-        let mut get_fields = match self.image_struct {
-            Some(image) => quote! { Some(#image { #(#fields),* }) }, // struct
-            None => quote! { Some(( #(#fields),* )) },               // tuple
+        let field_names: Vec<_> = fields.iter().map(|(name, _)| name).collect();
+
+        let mut get_fields = match self.image {
+            ImageOpts::Struct { ident, .. } => quote! { Some(#ident { #(#field_names),* }) }, // struct
+            ImageOpts::Tuple { .. } => quote! { Some(( #(#field_names),* )) }, // tuple
         };
 
         let storage = &self.struct_of;
         let id = &self.id;
-        for field in self.fields.iter().rev() {
-            let name = &field.name;
-            let storage = quote! { #storage.#name };
+        for (name, optic) in fields.iter().rev() {
+            let storage = quote! { #storage.#optic };
             get_fields = quote! {
                 match #storage.get(#id) {
                     None => None,
