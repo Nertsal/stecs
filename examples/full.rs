@@ -102,13 +102,13 @@ fn main() {
 
         // Or just query into a tuple
         println!("\nQuerying into a tuple:");
-        for unit in query!(world.units, (pos, tick)) {
+        for unit in query!(world.units, (&pos, &tick)) {
             println!("{:?}", unit);
         }
 
         // Query a single entity
         println!("\nSingle entity:");
-        if let Some(player) = get!(world.units, player_id, (pos, tick)) {
+        if let Some(player) = get!(world.units, player_id, (&pos, &tick)) {
             println!("{:?}", player);
         }
     }
@@ -116,7 +116,7 @@ fn main() {
     // Query an optional field
     {
         println!("\nHealth with damage:");
-        for unit in query!(world.units, (health, damage.Get.Some)) {
+        for unit in query!(world.units, (&health, &damage.Get.Some)) {
             // Now we get access to units which have health *and* damage
             println!("{:?}", unit);
         }
@@ -129,13 +129,13 @@ fn main() {
         let ids = world.units.ids();
         for &id in &ids {
             // Sadly you cant `query!` mutably, so you have to manually iterate over id's and `get!` each entity
-            let (health,) = get!(world.units, id, (mut health)).unwrap();
+            let (health,) = get!(world.units, id, (&mut health)).unwrap();
             println!("Updating {health:?}");
 
             // Iterate mutably over all units' ticks
             println!("  Inner query over ticks:");
             for &id in &ids {
-                let (tick,) = get!(world.units, id, (mut tick)).unwrap();
+                let (tick,) = get!(world.units, id, (&mut tick)).unwrap();
                 println!("  Incrementing {tick:?}");
                 *tick += 1;
             }
@@ -146,7 +146,7 @@ fn main() {
         // Iterate over all units' healths again
         println!("\nUpdated healths");
         for id in ids {
-            let (health,) = get!(world.units, id, (health)).unwrap();
+            let (health,) = get!(world.units, id, (&health)).unwrap();
             println!("{:?}", health);
         }
     }
@@ -155,7 +155,7 @@ fn main() {
     {
         println!("\nTicks inside units inside corpses:");
         // `tick` is located inside `unit`
-        for corpse in query!(world.corpses, (unit.tick)) {
+        for corpse in query!(world.corpses, (&unit.tick)) {
             println!("{:?}", corpse);
         }
     }
@@ -172,7 +172,7 @@ fn main() {
         let units = query!(world.units, PosRef { pos });
         // And we can have different access patterns for each entity
         // so we can access the position of the nested unit of the corpse
-        let particles = query!(world.corpses, PosRef { pos: unit.pos });
+        let particles = query!(world.corpses, PosRef { pos: &unit.pos });
 
         for item in units.chain(particles) {
             println!("{:?}", item);
@@ -182,7 +182,7 @@ fn main() {
     // Query the whole nested storage
     {
         println!("\nNested units:");
-        for item in query!(world.corpses, (unit)) {
+        for item in query!(world.corpses, (&unit)) {
             println!("{:?}", item);
         }
     }

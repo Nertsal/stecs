@@ -51,7 +51,7 @@ impl QueryOpts {
 
         let storage = &self.struct_of;
         quote! {{
-            #storage.ids().into_iter().flat_map(|id| { #get })
+            #storage.ids().into_iter().flat_map(|id| { #get }.map(|item| (id, item)))
         }}
     }
 }

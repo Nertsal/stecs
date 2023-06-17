@@ -108,11 +108,15 @@ impl Parse for ImageOpts {
 
 impl Parse for StructFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let is_mut: Option<syn::Token![mut]> = input.parse()?;
-
         let name: syn::Ident = input.parse()?;
+        let mut is_mut = false;
 
         let optic = if input.parse::<Option<syn::Token![:]>>()?.is_some() {
+            input.parse::<syn::Token![&]>()?;
+            if input.parse::<Option<syn::Token![mut]>>()?.is_some() {
+                is_mut = true;
+            }
+
             input.parse::<Optic>()?
         } else {
             Optic::Field {
@@ -123,7 +127,7 @@ impl Parse for StructFieldOpts {
 
         Ok(Self {
             name,
-            is_mut: is_mut.is_some(),
+            is_mut,
             optic,
         })
     }
@@ -136,12 +140,13 @@ impl Parse for StructFieldOpts {
 
 impl Parse for TupleFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let is_mut: Option<syn::Token![mut]> = input.parse()?;
+        let mut is_mut = false;
+        input.parse::<syn::Token![&]>()?;
+        if input.parse::<Option<syn::Token![mut]>>()?.is_some() {
+            is_mut = true;
+        }
         let optic: Optic = input.parse()?;
-        Ok(Self {
-            is_mut: is_mut.is_some(),
-            optic,
-        })
+        Ok(Self { is_mut, optic })
     }
 }
 
