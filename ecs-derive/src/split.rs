@@ -289,12 +289,12 @@ impl Struct {
                     // TODO: impl IntoIterator
                     pub fn into_iter(mut self) -> impl Iterator<Item = (F::Id, #struct_name)> where F: 'static {
                         use ::ecs::archetype::Archetype;
-                        self.ids().filter_map(move |id| self.remove(id).map(move |item| (id, item)))
+                        self.ids().into_iter().filter_map(move |id| self.remove(id).map(move |item| (id, item)))
                     }
 
                     pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_>)> {
                         use ::ecs::archetype::Archetype;
-                        self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
+                        self.ids().into_iter().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
                     // TODO
@@ -349,7 +349,7 @@ impl Struct {
             quote! {
                 impl<F: ::ecs::storage::StorageFamily> ::ecs::archetype::Archetype<F> for #struct_of_name<F> {
                     type Item = #struct_name;
-                    fn ids(&self) -> F::IdIter {
+                    fn ids(&self) -> ::std::collections::HashSet<F::Id> {
                         use ::ecs::storage::Storage;
                         #ids
                     }

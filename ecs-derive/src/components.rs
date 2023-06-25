@@ -30,6 +30,8 @@ struct Field {
     expr: Option<syn::Expr>,
 }
 
+// query_components!(units, UnitComponents, (pos = pos, mut tick = body.tick), { phantom_data: Default::default() })
+
 impl Parse for QueryOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let struct_of: syn::Expr = input.parse()?;
@@ -61,7 +63,7 @@ impl Parse for QueryOpts {
     }
 }
 
-// [mut] <name> = .<field.a?.b>
+// [mut] <name> = <field.a?.b>
 impl Parse for FieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mutability: Option<syn::Token![mut]> = input.parse()?;
@@ -69,7 +71,6 @@ impl Parse for FieldOpts {
         let name: syn::Ident = input.parse()?;
         let _: syn::Token![=] = input.parse()?;
 
-        let _: syn::Token![.] = input.parse()?;
         let accessor: syn::Expr = input.parse()?;
 
         Ok(Self {

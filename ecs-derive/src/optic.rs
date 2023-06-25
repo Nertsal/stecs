@@ -1,21 +1,20 @@
-use darling::export::syn;
+use darling::export::syn::{self, parse::Parse, punctuated::Punctuated};
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
 // TODO: proper optics
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Optic {
     Id,
     Field { name: syn::Ident, optic: Box<Optic> },
     Some(Box<Optic>),
+    Get(Box<Optic>),
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
-    #[error("Optic must start with a dot to indicate field access")]
-    ExpectedDot,
-    #[error("At most one _get is allowed")]
-    TooManyGets,
+    // #[error("At most one Get is allowed")]
+    // TooManyGets,
 }
 
 impl Optic {
@@ -28,72 +27,118 @@ impl Optic {
                 optic: Box::new(optic.compose(tail)),
             },
             Optic::Some(optic) => Optic::Some(Box::new(optic.compose(tail))),
+            Optic::Get(optic) => Optic::Get(Box::new(optic.compose(tail))),
         }
     }
 
-    /// The type of the component of the storage queried.
-    pub fn storage_type(&self, target_type: syn::Type) -> syn::Type {
-        match self {
-            Optic::Id => target_type,
-            Optic::Field { optic, .. } => optic.storage_type(target_type),
-            Optic::Some(optic) => {
-                let ty = optic.storage_type(target_type);
-                syn::Type::Verbatim(quote! { Option<#ty> })
-            }
-        }
-    }
+    // /// The type of the component of the storage queried.
+    // pub fn storage_type(&self, target_type: syn::Type) -> syn::Type {
+    //     match self {
+    //         Optic::Id => target_type,
+    //         Optic::Field { optic, .. } => optic.storage_type(target_type),
+    //         Optic::Some(optic) => {
+    //             let ty = optic.storage_type(target_type);
+    //             syn::Type::Verbatim(quote! { Option<#ty> })
+    //         }
+    //     }
+    // }
 
-    /// Whether the last accessor is field.
-    pub fn ends_with_field(&self) -> bool {
+    // /// Whether the last accessor is field.
+    // pub fn ends_with_field(&self) -> bool {
+    //     match self {
+    //         Optic::Id => false,
+    //         Optic::Field { optic, .. } => match &**optic {
+    //             Optic::Id => true,
+    //             _ => optic.ends_with_field(),
+    //         },
+    //         Optic::Some(optic) => optic.ends_with_field(),
+    //     }
+    // }
+
+    /// Whether the optic can fail to find the value.
+    fn is_optional(&self) -> bool {
         match self {
             Optic::Id => false,
-            Optic::Field { optic, .. } => match &**optic {
-                Optic::Id => true,
-                _ => optic.ends_with_field(),
-            },
-            Optic::Some(optic) => optic.ends_with_field(),
+            Optic::Field { optic, .. } => optic.is_optional(),
+            Optic::Some(_) => true,
+            Optic::Get(_) => true,
         }
     }
 
     /// Access the target component immutably.
-    pub fn access(&self) -> TokenStream {
-        self.access_impl(false)
+    pub fn access(&self, id: &syn::Expr, source: TokenStream) -> TokenStream {
+        self.access_impl(false, id, source)
     }
 
     /// Access the target component mutably.
-    pub fn access_mut(&self) -> TokenStream {
-        self.access_impl(true)
+    pub fn access_mut(&self, id: &syn::Expr, source: TokenStream) -> TokenStream {
+        self.access_impl(true, id, source)
     }
 
-    fn access_impl(&self, is_mut: bool) -> TokenStream {
+    fn access_impl(&self, is_mut: bool, id: &syn::Expr, source: TokenStream) -> TokenStream {
         match self {
-            Optic::Id => quote! {},
-            Optic::Field { name, optic } => {
-                let access = optic.access_impl(is_mut);
-                quote! { .#name #access }
-            }
+            Optic::Id => source,
+            Optic::Field { name, optic } => optic.access_impl(is_mut, id, quote! { #source.#name }),
             Optic::Some(optic) => {
-                let access = optic.access_impl(is_mut);
-                if is_mut {
-                    quote! { .as_mut()? #access }
+                let access_value = optic.access_impl(is_mut, id, quote! { value });
+                let access_value = if optic.is_optional() {
+                    access_value
                 } else {
-                    quote! { .as_ref()? #access }
+                    quote! { Some(#access_value) }
+                };
+                if is_mut {
+                    quote! {
+                        match #source.as_mut() {
+                            None => None,
+                            Some(value) => { #access_value }
+                        }
+                    }
+                } else {
+                    quote! {
+                        match #source.as_ref() {
+                            None => None,
+                            Some(value) => { #access_value }
+                        }
+                    }
+                }
+            }
+            Optic::Get(optic) => {
+                let access_value = optic.access_impl(is_mut, id, quote! { value });
+                let access_value = if optic.is_optional() {
+                    access_value
+                } else {
+                    quote! { Some(#access_value) }
+                };
+                if is_mut {
+                    quote! {
+                        match #source.get_mut(#id) {
+                            None => None,
+                            Some(value) => { #access_value }
+                        }
+                    }
+                } else {
+                    quote! {
+                        match #source.get(#id) {
+                            None => None,
+                            Some(value) => { #access_value }
+                        }
+                    }
                 }
             }
         }
     }
 
-    /// Separated by `._get`.
-    pub fn parse_storage_component(s: &str) -> Result<(Option<Self>, Option<Self>), ParseError> {
-        let parts = s.split("._get").collect::<Vec<_>>();
-        match &parts[..] {
-            [] => Ok((None, None)),
-            [component] => Ok((None, Some(component.parse()?))),
-            [storage, ""] => Ok((Some(storage.parse()?), None)),
-            [storage, component] => Ok((Some(storage.parse()?), Some(component.parse()?))),
-            _ => Err(ParseError::TooManyGets),
-        }
-    }
+    // /// Separated by `._get`.
+    // pub fn parse_storage_component(s: &str) -> Result<(Option<Self>, Option<Self>), ParseError> {
+    //     let parts = s.split("._get").collect::<Vec<_>>();
+    //     match &parts[..] {
+    //         [] => Ok((None, None)),
+    //         [component] => Ok((None, Some(component.parse()?))),
+    //         [storage, ""] => Ok((Some(storage.parse()?), None)),
+    //         [storage, component] => Ok((Some(storage.parse()?), Some(component.parse()?))),
+    //         _ => Err(ParseError::TooManyGets),
+    //     }
+    // }
 }
 
 impl std::str::FromStr for Optic {
@@ -101,11 +146,11 @@ impl std::str::FromStr for Optic {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut optic = Optic::Id;
-        let s = s.trim().strip_prefix('.').ok_or(ParseError::ExpectedDot)?;
+        let s = s.trim();
         for accessor in s.split('.').rev() {
             optic = match accessor.trim() {
                 "_id" => Optic::Id,
-                "_Some" => Optic::Some(Box::new(optic)),
+                "Some" => Optic::Some(Box::new(optic)),
                 field => Optic::Field {
                     name: Ident::new_raw(field, proc_macro2::Span::call_site()),
                     optic: Box::new(optic),
@@ -113,5 +158,54 @@ impl std::str::FromStr for Optic {
             };
         }
         Ok(optic)
+    }
+}
+
+enum OpticPart {
+    Id,
+    Some,
+    Field(syn::Ident),
+    Get,
+}
+
+impl Parse for Optic {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let parts = Punctuated::<OpticPart, syn::Token![.]>::parse_separated_nonempty(input)?;
+
+        let mut optic = Optic::Id;
+        let mut has_get = false;
+        for part in parts.into_iter().rev() {
+            optic = match part {
+                OpticPart::Id => optic,
+                OpticPart::Some => Optic::Some(Box::new(optic)),
+                OpticPart::Field(name) => Optic::Field {
+                    name,
+                    optic: Box::new(optic),
+                },
+                OpticPart::Get => {
+                    has_get = true;
+                    Optic::Get(Box::new(optic))
+                }
+            };
+        }
+
+        if !has_get {
+            optic = optic.compose(Optic::Get(Box::new(Optic::Id)));
+        }
+
+        Ok(optic)
+    }
+}
+
+impl Parse for OpticPart {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let ident: syn::Ident = input.parse()?;
+        let part = match ident.to_string().as_str() {
+            "_id" => Self::Id,
+            "Some" => Self::Some,
+            "Get" => Self::Get,
+            _ => Self::Field(ident),
+        };
+        Ok(part)
     }
 }

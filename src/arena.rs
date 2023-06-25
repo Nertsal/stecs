@@ -5,23 +5,20 @@ use crate::{
 
 pub use generational_arena::{Arena, Index};
 
+use std::collections::HashSet;
+
 pub struct ArenaFamily;
 
 impl StorageFamily for ArenaFamily {
     type Id = Index;
-    type IdIter = std::vec::IntoIter<Self::Id>;
     type Storage<T> = Arena<T>;
 }
 
 impl<T> Storage<T> for Arena<T> {
     type Family = ArenaFamily;
     type Id = Index;
-    type IdIter = std::vec::IntoIter<Self::Id>;
-    fn ids(&self) -> Self::IdIter {
-        self.iter()
-            .map(|(id, _)| id)
-            .collect::<Vec<_>>()
-            .into_iter()
+    fn ids(&self) -> HashSet<Self::Id> {
+        self.iter().map(|(id, _)| id).collect()
     }
     fn insert(&mut self, value: T) -> Self::Id {
         self.insert(value)

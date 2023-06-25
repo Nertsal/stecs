@@ -1,10 +1,12 @@
 use crate::storage::StorageFamily;
 
+use std::collections::HashSet;
+
 /// A collection of components bundled together, or an entity type.
 pub trait Archetype<F: StorageFamily>: Default {
     /// The type of the entity stored as components.
     type Item;
-    fn ids(&self) -> F::IdIter;
+    fn ids(&self) -> HashSet<F::Id>;
     fn insert(&mut self, value: Self::Item) -> F::Id;
     // fn get()
     // fn get_mut()
@@ -47,8 +49,7 @@ impl<S: StructOfAble> StructOf<S> {
 
 impl<S: StructOfAble> Archetype<S::Family> for StructOf<S> {
     type Item = <<S::Struct as SplitFields<S::Family>>::StructOf as Archetype<S::Family>>::Item;
-
-    fn ids(&self) -> <S::Family as StorageFamily>::IdIter {
+    fn ids(&self) -> HashSet<<S::Family as StorageFamily>::Id> {
         self.inner.ids()
     }
     fn insert(&mut self, value: Self::Item) -> <S::Family as StorageFamily>::Id {
