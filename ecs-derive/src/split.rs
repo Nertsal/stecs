@@ -349,7 +349,7 @@ impl Struct {
             quote! {
                 impl<F: ::ecs::storage::StorageFamily> ::ecs::archetype::Archetype<F> for #struct_of_name<F> {
                     type Item = #struct_name;
-                    fn ids(&self) -> ::std::collections::HashSet<F::Id> {
+                    fn ids(&self) -> ::std::collections::BTreeSet<F::Id> {
                         use ::ecs::storage::Storage;
                         #ids
                     }

@@ -2,7 +2,7 @@ mod vec;
 
 pub use vec::*;
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 /// A single component storage.
 pub trait Storage<T>: Default {
@@ -12,7 +12,7 @@ pub trait Storage<T>: Default {
     fn phantom_data(&self) -> std::marker::PhantomData<Self::Family> {
         Default::default()
     }
-    fn ids(&self) -> HashSet<Self::Id>;
+    fn ids(&self) -> BTreeSet<Self::Id>;
     fn insert(&mut self, value: T) -> Self::Id;
     fn get(&self, id: Self::Id) -> Option<&T>;
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;

@@ -1,8 +1,11 @@
-use crate::{SplitFields, Storage, StorageFamily, StructOfAble};
+use crate::{
+    archetype::{SplitFields, StructOfAble},
+    storage::{Storage, StorageFamily},
+};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(u64);
 
 #[derive(Clone)]
@@ -23,7 +26,7 @@ impl<T> Default for HashStorage<T> {
 impl<T> Storage<T> for HashStorage<T> {
     type Family = HashFamily;
     type Id = Id;
-    fn ids(&self) -> HashSet<Self::Id> {
+    fn ids(&self) -> BTreeSet<Self::Id> {
         self.inner.keys().copied().collect()
     }
     fn insert(&mut self, value: T) -> Self::Id {

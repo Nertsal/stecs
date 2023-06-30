@@ -5,7 +5,7 @@ use crate::{
 
 pub use generational_arena::{Arena, Index};
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 pub struct ArenaFamily;
 
@@ -17,7 +17,7 @@ impl StorageFamily for ArenaFamily {
 impl<T> Storage<T> for Arena<T> {
     type Family = ArenaFamily;
     type Id = Index;
-    fn ids(&self) -> HashSet<Self::Id> {
+    fn ids(&self) -> BTreeSet<Self::Id> {
         self.iter().map(|(id, _)| id).collect()
     }
     fn insert(&mut self, value: T) -> Self::Id {
