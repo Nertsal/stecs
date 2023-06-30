@@ -1,6 +1,8 @@
-mod vec;
-
-pub use vec::*;
+#[cfg(feature = "arena")]
+pub mod arena;
+#[cfg(feature = "hashstorage")]
+pub mod hashstorage;
+pub mod vec;
 
 use std::collections::BTreeSet;
 

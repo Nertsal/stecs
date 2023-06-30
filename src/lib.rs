@@ -8,10 +8,6 @@
 pub use ecs_derive::query_components;
 
 pub mod archetype;
-#[cfg(feature = "arena")]
-pub mod arena;
-#[cfg(feature = "hashstorage")]
-pub mod hashstorage;
 pub mod storage;
 
 pub mod prelude {
