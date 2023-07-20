@@ -13,12 +13,12 @@ pub trait Archetype<F: StorageFamily>: Default {
     fn remove(&mut self, id: F::Id) -> Option<Self::Item>;
 }
 
-/// A wrapper around an [Archetype] for convenient usage in type definitions.
+/// A type synonym for an [Archetype] for convenient usage in type definitions.
 ///
-/// For example, `StructOf<Vec<Unit>>` would use `UnitStructOf<VecFamily>` underneath.
-pub struct StructOf<S: StructOfAble> {
-    pub inner: <S::Struct as SplitFields<S::Family>>::StructOf,
-}
+/// For example, `StructOf<Vec<Unit>>` would turn into `UnitStructOf<VecFamily>`.
+// pub type StructOf<S: StructOfAble> = <S::Struct as SplitFields<S::Family>>::StructOf;
+pub type StructOf<S> =
+    <<S as StructOfAble>::Struct as SplitFields<<S as StructOfAble>::Family>>::StructOf;
 
 /// Implemented for "T's of structs" to convert into "structs of T's".
 pub trait StructOfAble {
@@ -41,54 +41,54 @@ pub trait StructRef {
     type RefMut<'a>;
 }
 
-impl<S: StructOfAble> StructOf<S> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
+// impl<S: StructOfAble> StructOf<S> {
+//     pub fn new() -> Self {
+//         Self::default()
+//     }
+// }
 
-impl<S: StructOfAble> Archetype<S::Family> for StructOf<S> {
-    type Item = <<S::Struct as SplitFields<S::Family>>::StructOf as Archetype<S::Family>>::Item;
-    fn ids(&self) -> BTreeSet<<S::Family as StorageFamily>::Id> {
-        self.inner.ids()
-    }
-    fn insert(&mut self, value: Self::Item) -> <S::Family as StorageFamily>::Id {
-        self.inner.insert(value)
-    }
-    fn remove(&mut self, id: <S::Family as StorageFamily>::Id) -> Option<Self::Item> {
-        self.inner.remove(id)
-    }
-}
+// impl<S: StructOfAble> Archetype<S::Family> for StructOf<S> {
+//     type Item = <<S::Struct as SplitFields<S::Family>>::StructOf as Archetype<S::Family>>::Item;
+//     fn ids(&self) -> BTreeSet<<S::Family as StorageFamily>::Id> {
+//         self.inner.ids()
+//     }
+//     fn insert(&mut self, value: Self::Item) -> <S::Family as StorageFamily>::Id {
+//         self.inner.insert(value)
+//     }
+//     fn remove(&mut self, id: <S::Family as StorageFamily>::Id) -> Option<Self::Item> {
+//         self.inner.remove(id)
+//     }
+// }
 
-impl<S: StructOfAble> std::ops::Deref for StructOf<S> {
-    type Target = <S::Struct as SplitFields<S::Family>>::StructOf;
+// impl<S: StructOfAble> std::ops::Deref for StructOf<S> {
+//     type Target = <S::Struct as SplitFields<S::Family>>::StructOf;
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         &self.inner
+//     }
+// }
 
-impl<S: StructOfAble> std::ops::DerefMut for StructOf<S> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
+// impl<S: StructOfAble> std::ops::DerefMut for StructOf<S> {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.inner
+//     }
+// }
 
-impl<S: StructOfAble> Default for StructOf<S> {
-    fn default() -> Self {
-        Self {
-            inner: Default::default(),
-        }
-    }
-}
+// impl<S: StructOfAble> Default for StructOf<S> {
+//     fn default() -> Self {
+//         Self {
+//             inner: Default::default(),
+//         }
+//     }
+// }
 
-impl<S: StructOfAble> Clone for StructOf<S>
-where
-    <S::Struct as SplitFields<S::Family>>::StructOf: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
+// impl<S: StructOfAble> Clone for StructOf<S>
+// where
+//     <S::Struct as SplitFields<S::Family>>::StructOf: Clone,
+// {
+//     fn clone(&self) -> Self {
+//         Self {
+//             inner: self.inner.clone(),
+//         }
+//     }
+// }

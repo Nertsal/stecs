@@ -272,7 +272,11 @@ impl Struct {
 
             quote! {
                 impl<F: ::ecs::storage::StorageFamily> #struct_of_name<F> {
-                    pub fn phantom_data(&self, ) -> ::std::marker::PhantomData<F> {
+                    pub fn new(&self) -> Self {
+                        Self::default()
+                    }
+
+                    pub fn phantom_data(&self) -> ::std::marker::PhantomData<F> {
                         ::std::default::Default::default()
                     }
 

@@ -152,9 +152,9 @@ impl Parse for TupleFieldOpts {
 
 impl StorageGetOpts {
     pub fn get(self) -> TokenStream {
-        // match units.inner.pos.get(id) {
+        // match units.pos.get(id) {
         //     None => None,
-        //     Some(pos) => match units.inner.tick.get(id) {
+        //     Some(pos) => match units.tick.get(id) {
         //         None => None,
         //         Some(tick) => Struct { pos, tick },
         //     },
@@ -190,11 +190,10 @@ impl StorageGetOpts {
         let storage = &self.struct_of;
         let id = &self.id;
         for (name, is_mut, optic) in fields.into_iter().rev() {
-            // TODO: maybe handle `inner` better
             let component = if is_mut {
-                optic.access_mut(id, quote! { #storage.inner })
+                optic.access_mut(id, quote! { #storage })
             } else {
-                optic.access(id, quote! { #storage.inner })
+                optic.access(id, quote! { #storage })
             };
             get_fields = quote! {
                 match #component {

@@ -37,9 +37,9 @@ fn main() {
     println!("Hello, example!");
 
     let mut world = GameWorld {
-        units: StructOf::new(),
-        corpses: StructOf::new(),
-        particles: StructOf::new(),
+        units: Default::default(),
+        corpses: Default::default(),
+        particles: Default::default(),
     };
 
     let player_id = world.units.insert(Unit {
@@ -188,7 +188,7 @@ fn main() {
     }
 
     println!("\nTaking back ownership of all units:");
-    for unit in world.units.inner.into_iter() {
+    for unit in world.units.into_iter() {
         println!("{unit:?}");
     }
 }
