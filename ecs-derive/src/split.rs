@@ -5,11 +5,13 @@ use proc_macro2::TokenStream;
 use quote::{quote, TokenStreamExt};
 
 #[derive(FromDeriveInput)]
-#[darling(supports(struct_named))]
+#[darling(supports(struct_named), attributes(split))]
 pub struct SplitOpts {
     ident: syn::Ident,
     vis: syn::Visibility,
     data: ast::Data<(), FieldOpts>,
+    debug: Option<()>,
+    clone: Option<()>,
 }
 
 #[derive(FromField)]
@@ -24,6 +26,8 @@ struct Struct {
     name: syn::Ident,
     visibility: syn::Visibility,
     fields: Vec<Field>,
+    debug: bool,
+    clone: bool,
 }
 
 struct Field {
@@ -64,6 +68,8 @@ impl TryFrom<SplitOpts> for Struct {
             name: value.ident,
             visibility: value.vis,
             fields,
+            debug: value.debug.is_some(),
+            clone: value.clone.is_some(),
         })
     }
 }
@@ -81,6 +87,8 @@ impl Struct {
             name: struct_name,
             visibility: vis,
             fields: struct_fields,
+            debug: struct_debug,
+            clone: struct_clone,
         } = self;
 
         let struct_of_name = syn::Ident::new(
@@ -123,15 +131,30 @@ impl Struct {
                 })
                 .collect::<Vec<_>>();
 
-            quote! {
-                #[derive(Debug)]
+            let derive = if struct_debug {
+                quote! { #[derive(Debug)] }
+            } else {
+                quote! {}
+            };
+            let struct_ref = quote! {
                 #vis struct #struct_ref_name<'a> {
                     #(#fields)*
                 }
-
-                impl #struct_ref_name<'_> {
-                    #struct_cloned
+            };
+            let clone = if struct_clone {
+                quote! {
+                    impl #struct_ref_name<'_> {
+                        #struct_cloned
+                    }
                 }
+            } else {
+                quote! {}
+            };
+
+            quote! {
+                #derive
+                #struct_ref
+                #clone
             }
         };
 
@@ -154,15 +177,30 @@ impl Struct {
                 })
                 .collect::<Vec<_>>();
 
-            quote! {
-                #[derive(Debug)]
+            let derive = if struct_debug {
+                quote! { #[derive(Debug)] }
+            } else {
+                quote! {}
+            };
+            let struct_ref = quote! {
                 #vis struct #struct_ref_mut_name<'a> {
                     #(#fields)*
                 }
-
-                impl #struct_ref_mut_name<'_> {
-                    #struct_cloned
+            };
+            let clone = if struct_clone {
+                quote! {
+                    impl #struct_ref_mut_name<'_> {
+                        #struct_cloned
+                    }
                 }
+            } else {
+                quote! {}
+            };
+
+            quote! {
+                #derive
+                #struct_ref
+                #clone
             }
         };
 

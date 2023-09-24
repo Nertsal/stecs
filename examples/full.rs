@@ -10,6 +10,7 @@ struct GameWorld {
 }
 
 #[derive(SplitFields, Debug, Clone)]
+#[split(debug)] // derive `Debug` for the `UnitRef` generated struct
 struct Unit {
     // id: Id,
     pos: (f32, f32),
@@ -28,6 +29,7 @@ struct Corpse {
 }
 
 #[derive(SplitFields, Debug)]
+#[split(clone)] // implement clone method for the `ParticleRef` generated struct to clone the data into a `Particle`
 struct Particle {
     pos: (f32, f32),
     time: f32,
@@ -80,8 +82,9 @@ fn main() {
 
     // Iterate over all fields of all particles
     println!("\nParticles:");
-    for particle in world.particles.iter() {
-        println!("{particle:?}");
+    for (_, particle) in world.particles.iter() {
+        let particle_cloned: Particle = particle.clone();
+        println!("{particle_cloned:?}");
     }
 
     // Query fields
