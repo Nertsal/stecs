@@ -10,6 +10,7 @@ pub struct SplitOpts {
     ident: syn::Ident,
     vis: syn::Visibility,
     data: ast::Data<(), FieldOpts>,
+    generics: syn::Generics,
     debug: Option<()>,
     clone: Option<()>,
 }
@@ -26,6 +27,7 @@ struct Struct {
     name: syn::Ident,
     visibility: syn::Visibility,
     fields: Vec<Field>,
+    generics: syn::Generics,
     debug: bool,
     clone: bool,
 }
@@ -68,6 +70,7 @@ impl TryFrom<SplitOpts> for Struct {
             name: value.ident,
             visibility: value.vis,
             fields,
+            generics: value.generics,
             debug: value.debug.is_some(),
             clone: value.clone.is_some(),
         })
@@ -87,6 +90,7 @@ impl Struct {
             name: struct_name,
             visibility: vis,
             fields: struct_fields,
+            generics: struct_generics,
             debug: struct_debug,
             clone: struct_clone,
         } = self;
@@ -95,6 +99,46 @@ impl Struct {
             &format!("{struct_name}StructOf"),
             proc_macro2::Span::call_site(),
         );
+
+        let (generics, generics_family, generics_use, generics_family_use) = {
+            // TODO: mangle names
+            let params: Vec<_> = struct_generics.params.iter().collect();
+            let params_use: Vec<_> = params
+                .iter()
+                .map(|param| match param {
+                    syn::GenericParam::Type(param) => {
+                        let ident = &param.ident;
+                        quote! { #ident }
+                    }
+                    syn::GenericParam::Lifetime(param) => {
+                        let ident = &param.lifetime;
+                        quote! { #ident }
+                    }
+                    syn::GenericParam::Const(param) => {
+                        let ident = &param.ident;
+                        quote! { #ident }
+                    }
+                })
+                .collect();
+
+            // Family generics, with an added StorageFamily generic
+            let i = params
+                .iter()
+                .position(|param| !matches!(param, syn::GenericParam::Lifetime(_)))
+                .unwrap_or(params.len());
+            let mut params_family: Vec<_> = params.iter().map(|param| quote! { #param}).collect();
+            params_family.insert(i, quote! { F: ::ecs::storage::StorageFamily });
+
+            let mut params_family_use = params_use.clone();
+            params_family_use.insert(i, quote! { F });
+
+            (
+                quote! { #(#params),* },
+                quote! { #(#params_family),* },
+                quote! { #(#params_use),*},
+                quote! { #(#params_family_use),* },
+            )
+        };
 
         let struct_cloned = {
             let fields = struct_fields
@@ -137,13 +181,13 @@ impl Struct {
                 quote! {}
             };
             let struct_ref = quote! {
-                #vis struct #struct_ref_name<'a> {
+                #vis struct #struct_ref_name<'a, #generics> {
                     #(#fields)*
                 }
             };
             let clone = if struct_clone {
                 quote! {
-                    impl #struct_ref_name<'_> {
+                    impl #struct_ref_name<'_, #generics> {
                         #struct_cloned
                     }
                 }
@@ -183,13 +227,13 @@ impl Struct {
                 quote! {}
             };
             let struct_ref = quote! {
-                #vis struct #struct_ref_mut_name<'a> {
+                #vis struct #struct_ref_mut_name<'a, #generics> {
                     #(#fields)*
                 }
             };
             let clone = if struct_clone {
                 quote! {
-                    impl #struct_ref_mut_name<'_> {
+                    impl #struct_ref_mut_name<'_, #generics> {
                         #struct_cloned
                     }
                 }
@@ -205,15 +249,35 @@ impl Struct {
         };
 
         let struct_split_fields = quote! {
-            impl<F: ::ecs::storage::StorageFamily> ::ecs::archetype::SplitFields<F> for #struct_name {
-                type StructOf = #struct_of_name<F>;
+            impl<#generics_family> ::ecs::archetype::SplitFields<F> for #struct_name<#generics_use> {
+                type StructOf = #struct_of_name<#generics_family_use>;
             }
         };
 
-        let struct_ref_impl = quote! {
-            impl ::ecs::archetype::StructRef for #struct_name {
-                type Ref<'a> = #struct_ref_name<'a>;
-                type RefMut<'a> = #struct_ref_mut_name<'a>;
+        let struct_ref_impl = {
+            let lifename = quote! { 'a };
+            let impl_generics: Vec<_> = struct_generics
+                .params
+                .iter()
+                .map(|param| match param {
+                    syn::GenericParam::Type(param) => {
+                        let ident = &param.ident;
+                        quote! { #ident }
+                    }
+                    syn::GenericParam::Lifetime(_) => lifename.clone(),
+                    syn::GenericParam::Const(param) => {
+                        let ident = &param.ident;
+                        quote! { #ident }
+                    }
+                })
+                .collect();
+            let impl_generics = quote! { #(#impl_generics),* };
+
+            quote! {
+                impl<#generics> ::ecs::archetype::StructRef for #struct_name<#generics_use> {
+                    type Ref<#lifename> = #struct_ref_name<#lifename, #impl_generics>;
+                    type RefMut<#lifename> = #struct_ref_mut_name<#lifename, #impl_generics>;
+                }
             }
         };
 
@@ -235,7 +299,7 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                #vis struct #struct_of_name<F: ::ecs::storage::StorageFamily> {
+                #vis struct #struct_of_name<#generics_family> {
                     #(#fields)*
                 }
             }
@@ -260,7 +324,7 @@ impl Struct {
             });
 
             quote! {
-                impl<F: ::ecs::storage::StorageFamily> Clone for #struct_of_name<F>
+                impl<#generics_family> Clone for #struct_of_name<#generics_family_use>
                 where
                     #(#constraints),*
                 {
@@ -309,7 +373,7 @@ impl Struct {
             });
 
             quote! {
-                impl<F: ::ecs::storage::StorageFamily> #struct_of_name<F> {
+                impl<#generics_family> #struct_of_name<#generics_family_use> {
                     pub fn new(&self) -> Self {
                         Self::default()
                     }
@@ -318,29 +382,29 @@ impl Struct {
                         ::std::default::Default::default()
                     }
 
-                    pub fn get(&self, id: F::Id) -> Option<#struct_ref_name<'_>> {
+                    pub fn get(&self, id: F::Id) -> Option<#struct_ref_name<'_, #generics_use>> {
                         use ::ecs::storage::Storage;
                         #(#get)*
                     }
 
-                    pub fn get_mut(&mut self, id: F::Id) -> Option<#struct_ref_mut_name<'_>> {
+                    pub fn get_mut(&mut self, id: F::Id) -> Option<#struct_ref_mut_name<'_, #generics_use>> {
                         use ::ecs::storage::Storage;
                         #(#get_mut)*
                     }
 
                     // TODO: impl IntoIterator
-                    pub fn into_iter(mut self) -> impl Iterator<Item = (F::Id, #struct_name)> where F: 'static {
+                    pub fn into_iter(mut self) -> impl Iterator<Item = (F::Id, #struct_name<#generics_use>)> where F: 'static {
                         use ::ecs::archetype::Archetype;
                         self.ids().into_iter().filter_map(move |id| self.remove(id).map(move |item| (id, item)))
                     }
 
-                    pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_>)> {
+                    pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_, #generics_use>)> {
                         use ::ecs::archetype::Archetype;
                         self.ids().into_iter().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
                     // TODO
-                    // pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a>)> + 'a {
+                    // pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a, #generics_use>)> + 'a {
                     //     use ::ecs::archetype::Archetype;
                     //     self.ids().filter_map(|id| self.get_mut(id).map(move |item| (id, item)))
                     // }
@@ -389,8 +453,8 @@ impl Struct {
                 .expect("Expected at least one field");
 
             quote! {
-                impl<F: ::ecs::storage::StorageFamily> ::ecs::archetype::Archetype<F> for #struct_of_name<F> {
-                    type Item = #struct_name;
+                impl<#generics_family> ::ecs::archetype::Archetype<F> for #struct_of_name<#generics_family_use> {
+                    type Item = #struct_name<#generics_use>;
                     fn ids(&self) -> ::std::collections::BTreeSet<F::Id> {
                         use ::ecs::storage::Storage;
                         #ids
@@ -419,7 +483,7 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                impl<F: ::ecs::storage::StorageFamily> Default for #struct_of_name<F> {
+                impl<#generics_family> Default for #struct_of_name<#generics_family_use> {
                     fn default() -> Self {
                         Self {
                             #(#fields),*
