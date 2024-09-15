@@ -12,7 +12,7 @@ pub struct SplitOpts {
     data: ast::Data<(), FieldOpts>,
     generics: syn::Generics,
     debug: Option<()>,
-    clone: Option<()>,
+    to_owned: Option<()>,
 }
 
 #[derive(FromField)]
@@ -29,7 +29,7 @@ struct Struct {
     fields: Vec<Field>,
     generics: syn::Generics,
     debug: bool,
-    clone: bool,
+    to_owned: bool,
 }
 
 struct Field {
@@ -72,7 +72,7 @@ impl TryFrom<SplitOpts> for Struct {
             fields,
             generics: value.generics,
             debug: value.debug.is_some(),
-            clone: value.clone.is_some(),
+            to_owned: value.to_owned.is_some(),
         })
     }
 }
@@ -92,7 +92,7 @@ impl Struct {
             fields: struct_fields,
             generics: struct_generics,
             debug: struct_debug,
-            clone: struct_clone,
+            to_owned: struct_to_owned,
         } = self;
 
         let struct_of_name = syn::Ident::new(
@@ -140,7 +140,7 @@ impl Struct {
             )
         };
 
-        let struct_cloned = {
+        let struct_to_owneded = {
             let fields = struct_fields
                 .iter()
                 .map(|field| {
@@ -150,7 +150,7 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                pub fn clone(&self) -> #struct_name {
+                pub fn to_owned(&self) -> #struct_name {
                     #struct_name {
                         #(#fields)*
                     }
@@ -185,10 +185,10 @@ impl Struct {
                     #(#fields)*
                 }
             };
-            let clone = if struct_clone {
+            let to_owned = if struct_to_owned {
                 quote! {
                     impl #struct_ref_name<'_, #generics> {
-                        #struct_cloned
+                        #struct_to_owneded
                     }
                 }
             } else {
@@ -198,7 +198,7 @@ impl Struct {
             quote! {
                 #derive
                 #struct_ref
-                #clone
+                #to_owned
             }
         };
 
@@ -231,10 +231,10 @@ impl Struct {
                     #(#fields)*
                 }
             };
-            let clone = if struct_clone {
+            let to_owned = if struct_to_owned {
                 quote! {
                     impl #struct_ref_mut_name<'_, #generics> {
-                        #struct_cloned
+                        #struct_to_owneded
                     }
                 }
             } else {
@@ -244,7 +244,7 @@ impl Struct {
             quote! {
                 #derive
                 #struct_ref
-                #clone
+                #to_owned
             }
         };
 

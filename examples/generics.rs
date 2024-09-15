@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use ecs::prelude::*;
 
 struct World<'a> {
