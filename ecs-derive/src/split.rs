@@ -392,12 +392,6 @@ impl Struct {
                         #(#get_mut)*
                     }
 
-                    // TODO: impl IntoIterator
-                    pub fn into_iter(mut self) -> impl Iterator<Item = (F::Id, #struct_name<#generics_use>)> where F: 'static {
-                        use ::ecs::archetype::Archetype;
-                        self.ids().into_iter().filter_map(move |id| self.remove(id).map(move |item| (id, item)))
-                    }
-
                     pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_, #generics_use>)> {
                         use ::ecs::archetype::Archetype;
                         self.ids().into_iter().filter_map(|id| self.get(id).map(move |item| (id, item)))
@@ -408,6 +402,15 @@ impl Struct {
                     //     use ::ecs::archetype::Archetype;
                     //     self.ids().filter_map(|id| self.get_mut(id).map(move |item| (id, item)))
                     // }
+                }
+
+                impl<#generics_family> IntoIterator for #struct_of_name<#generics_family_use> {
+                    type Item = (F::Id, #struct_name<#generics_use>);
+                    type IntoIter = ::ecs::archetype::ArchetypeIntoIter<F, #struct_of_name<#generics_family_use>>;
+
+                    fn into_iter(self) -> Self::IntoIter {
+                        ::ecs::archetype::ArchetypeIntoIter::new(self)
+                    }
                 }
             }
         };

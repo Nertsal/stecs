@@ -191,7 +191,7 @@ fn main() {
     }
 
     println!("\nTaking back ownership of all units:");
-    for unit in world.units.into_iter() {
+    for unit in world.units {
         println!("{unit:?}");
     }
 }
