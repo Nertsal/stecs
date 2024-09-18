@@ -35,17 +35,17 @@ pub enum ImageOpts {
 #[derive(Debug)]
 pub struct StructFieldOpts {
     /// The name of the field/component.
-    name: syn::Ident,
+    pub name: syn::Ident,
     pub is_mut: bool,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage or optional components.
-    optic: Optic,
+    pub optic: Optic,
 }
 
 #[derive(Debug)]
 pub struct TupleFieldOpts {
     pub is_mut: bool,
     /// The optic to the access the field/component. Can be used to rename the field in the query, or to query from a nested storage.
-    optic: Optic,
+    pub optic: Optic,
 }
 
 // get!(units, id, { pos, tick })
