@@ -372,6 +372,73 @@ impl Struct {
                 })
             });
 
+            let mut iter_mut = Vec::new();
+            let mut get_many_mut = Vec::new();
+            if fields.is_empty() {
+                // No fields
+                iter_mut.push(quote! { ::std::iter::empty() });
+                get_many_mut.push(quote! { ::std::iter::empty() });
+            } else {
+                // Collect fields
+                iter_mut = struct_fields
+                    .iter()
+                    .map(|field| {
+                        let name = &field.name;
+                        // TODO: Avoid cloning
+                        quote! { let #name = self.#name.get_many_mut(ids.clone().into_iter()); }
+                    })
+                    .collect();
+
+                // Zip fields
+                let zip = std::iter::once(quote! { ids.into_iter() }).chain(
+                    struct_fields.iter().map(|field| {
+                        let name = &field.name;
+                        quote! { .zip(#name) }
+                    }),
+                );
+                iter_mut.extend(zip);
+
+                // Construct the arguments for the lambda function
+                let mut args = quote! { id };
+                for field in struct_fields.iter().map(|field| &field.name) {
+                    args = quote! { (#args, #field) };
+                }
+
+                // Filter fields to only Some
+                let filter_fields = struct_fields
+                    .iter()
+                    .map(|field| {
+                        let name = &field.name;
+                        quote! { let #name = #name?; }
+                    })
+                    .collect::<Vec<_>>();
+
+                get_many_mut = iter_mut.clone();
+
+                // Construct the lambda function
+                iter_mut.push(quote! {
+                    .filter_map(|#args| {
+                        #(#filter_fields)*
+                        Some((
+                            id,
+                            #struct_ref_mut_name {
+                                #(#fields)*
+                            }
+                        ))
+                    })
+                });
+
+                get_many_mut.push(quote! {
+                    .map(|#args| {
+                        #(#filter_fields)*
+                        Some(#struct_ref_mut_name {
+                            #(#fields)*
+                        }
+                        )
+                    })
+                });
+            }
+
             quote! {
                 impl<#generics_family> #struct_of_name<#generics_family_use> {
                     pub fn new(&self) -> Self {
@@ -397,11 +464,19 @@ impl Struct {
                         self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
-                    // TODO
-                    // pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a, #generics_use>)> + 'a {
-                    //     use ::ecs::archetype::Archetype;
-                    //     self.ids().filter_map(|id| self.get_mut(id).map(move |item| (id, item)))
-                    // }
+                    pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a, #generics_use>)> + 'a {
+                        use ::ecs::archetype::Archetype;
+                        let ids: Vec<_> = self.ids().collect(); // TODO: avoid allocation
+                        #(#iter_mut)*
+                    }
+
+                    pub fn get_many_mut<'a>(
+                        &'a mut self,
+                        ids: impl Iterator<Item = F::Id>,
+                    ) -> impl Iterator<Item = Option<#struct_ref_mut_name<'a, #generics_use>>> {
+                        let ids: Vec<_> = ids.collect(); // TODO: avoid allocation
+                        #(#get_many_mut)*
+                    }
                 }
 
                 impl<#generics_family> IntoIterator for #struct_of_name<#generics_family_use> {

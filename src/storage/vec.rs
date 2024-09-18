@@ -22,6 +22,25 @@ impl<T> Storage<T> for Vec<T> {
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         (id < self.len()).then(|| self.swap_remove(id))
     }
+    fn get_many_mut<'a>(
+        &'a mut self,
+        ids: impl Iterator<Item = Self::Id>,
+    ) -> impl Iterator<Item = Option<&'a mut T>>
+    where
+        T: 'a,
+    {
+        let mut collected = Vec::new(); // TODO: remove allocation
+        ids.map(move |i| {
+            if collected.contains(&i) {
+                return None;
+            }
+            // SAFETY: `collected` checks that no indices are repeated.
+            self.get_mut(i).map(|r| {
+                collected.push(i);
+                unsafe { &mut *(r as *mut T) }
+            })
+        })
+    }
 }
 
 pub struct VecFamily;

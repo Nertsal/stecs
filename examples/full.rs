@@ -129,7 +129,7 @@ fn main() {
     {
         // Iterate mutably over all units' healths
         println!("\nHealths:");
-        let ids = world.units.ids();
+        let ids = world.units.ids().collect::<Vec<_>>();
         for &id in &ids {
             // Sadly you cant `query!` mutably, so you have to manually iterate over id's and `get!` each entity
             let (health,) = get!(world.units, id, (&mut health)).unwrap();
