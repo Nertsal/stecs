@@ -5,8 +5,6 @@ use crate::{
 
 pub use generational_arena::{Arena, Index};
 
-use std::collections::BTreeSet;
-
 pub struct ArenaFamily;
 
 impl StorageFamily for ArenaFamily {
@@ -17,8 +15,8 @@ impl StorageFamily for ArenaFamily {
 impl<T> Storage<T> for Arena<T> {
     type Family = ArenaFamily;
     type Id = Index;
-    fn ids(&self) -> BTreeSet<Self::Id> {
-        self.iter().map(|(id, _)| id).collect()
+    fn ids(&self) -> impl Iterator<Item = Self::Id> {
+        self.iter().map(|(id, _)| id)
     }
     fn insert(&mut self, value: T) -> Self::Id {
         self.insert(value)

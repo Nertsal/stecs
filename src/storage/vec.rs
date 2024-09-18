@@ -2,8 +2,6 @@ use crate::archetype::{SplitFields, StructOfAble};
 
 use super::*;
 
-use std::collections::BTreeSet;
-
 impl<T> Storage<T> for Vec<T> {
     type Family = VecFamily;
     type Id = usize;
@@ -12,8 +10,8 @@ impl<T> Storage<T> for Vec<T> {
         self.push(value);
         id
     }
-    fn ids(&self) -> BTreeSet<Self::Id> {
-        (0..self.len()).collect()
+    fn ids(&self) -> impl Iterator<Item = Self::Id> {
+        0..self.len()
     }
     fn get(&self, id: Self::Id) -> Option<&T> {
         self.as_slice().get(id)

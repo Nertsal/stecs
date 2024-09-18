@@ -1,14 +1,14 @@
 use super::*;
 
 pub struct ArchetypeIntoIter<F: StorageFamily, S: Archetype<F>> {
-    ids: ::std::collections::btree_set::IntoIter<F::Id>,
+    ids: std::vec::IntoIter<F::Id>,
     archetype: S,
 }
 
 impl<F: StorageFamily, S: Archetype<F>> ArchetypeIntoIter<F, S> {
     pub fn new(archetype: S) -> Self {
         Self {
-            ids: archetype.ids().into_iter(),
+            ids: archetype.ids().collect::<Vec<_>>().into_iter(), // TODO: without collecting
             archetype,
         }
     }

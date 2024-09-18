@@ -3,7 +3,7 @@ use crate::{
     storage::{Storage, StorageFamily},
 };
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(u64);
@@ -26,8 +26,8 @@ impl<T> Default for HashStorage<T> {
 impl<T> Storage<T> for HashStorage<T> {
     type Family = HashFamily;
     type Id = Id;
-    fn ids(&self) -> BTreeSet<Self::Id> {
-        self.inner.keys().copied().collect()
+    fn ids(&self) -> impl Iterator<Item = Self::Id> {
+        self.inner.keys().copied()
     }
     fn insert(&mut self, value: T) -> Self::Id {
         let id = self.next_id;

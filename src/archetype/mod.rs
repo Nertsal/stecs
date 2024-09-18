@@ -4,13 +4,11 @@ pub use self::iter::*;
 
 use crate::storage::StorageFamily;
 
-use std::collections::BTreeSet;
-
 /// A collection of components bundled together, or an entity type.
 pub trait Archetype<F: StorageFamily>: Default {
     /// The type of the entity stored as components.
     type Item;
-    fn ids(&self) -> BTreeSet<F::Id>;
+    fn ids(&self) -> impl Iterator<Item = F::Id>;
     fn insert(&mut self, value: Self::Item) -> F::Id;
     // fn get()
     // fn get_mut()
@@ -44,55 +42,3 @@ pub trait StructRef {
     /// Type that holds mutable references to the fields.
     type RefMut<'a>;
 }
-
-// impl<S: StructOfAble> StructOf<S> {
-//     pub fn new() -> Self {
-//         Self::default()
-//     }
-// }
-
-// impl<S: StructOfAble> Archetype<S::Family> for StructOf<S> {
-//     type Item = <<S::Struct as SplitFields<S::Family>>::StructOf as Archetype<S::Family>>::Item;
-//     fn ids(&self) -> BTreeSet<<S::Family as StorageFamily>::Id> {
-//         self.inner.ids()
-//     }
-//     fn insert(&mut self, value: Self::Item) -> <S::Family as StorageFamily>::Id {
-//         self.inner.insert(value)
-//     }
-//     fn remove(&mut self, id: <S::Family as StorageFamily>::Id) -> Option<Self::Item> {
-//         self.inner.remove(id)
-//     }
-// }
-
-// impl<S: StructOfAble> std::ops::Deref for StructOf<S> {
-//     type Target = <S::Struct as SplitFields<S::Family>>::StructOf;
-
-//     fn deref(&self) -> &Self::Target {
-//         &self.inner
-//     }
-// }
-
-// impl<S: StructOfAble> std::ops::DerefMut for StructOf<S> {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.inner
-//     }
-// }
-
-// impl<S: StructOfAble> Default for StructOf<S> {
-//     fn default() -> Self {
-//         Self {
-//             inner: Default::default(),
-//         }
-//     }
-// }
-
-// impl<S: StructOfAble> Clone for StructOf<S>
-// where
-//     <S::Struct as SplitFields<S::Family>>::StructOf: Clone,
-// {
-//     fn clone(&self) -> Self {
-//         Self {
-//             inner: self.inner.clone(),
-//         }
-//     }
-// }

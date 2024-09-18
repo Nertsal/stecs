@@ -394,7 +394,7 @@ impl Struct {
 
                     pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_, #generics_use>)> {
                         use ::ecs::archetype::Archetype;
-                        self.ids().into_iter().filter_map(|id| self.get(id).map(move |item| (id, item)))
+                        self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
                     // TODO
@@ -458,7 +458,7 @@ impl Struct {
             quote! {
                 impl<#generics_family> ::ecs::archetype::Archetype<F> for #struct_of_name<#generics_family_use> {
                     type Item = #struct_name<#generics_use>;
-                    fn ids(&self) -> ::std::collections::BTreeSet<F::Id> {
+                    fn ids(&self) -> impl Iterator<Item = F::Id> {
                         use ::ecs::storage::Storage;
                         #ids
                     }

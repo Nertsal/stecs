@@ -4,8 +4,6 @@ pub mod arena;
 pub mod hashstorage;
 pub mod vec;
 
-use std::collections::BTreeSet;
-
 /// A single component storage.
 pub trait Storage<T>: Default {
     type Family: StorageFamily;
@@ -14,7 +12,7 @@ pub trait Storage<T>: Default {
     fn phantom_data(&self) -> std::marker::PhantomData<Self::Family> {
         Default::default()
     }
-    fn ids(&self) -> BTreeSet<Self::Id>;
+    fn ids(&self) -> impl Iterator<Item = Self::Id>;
     fn insert(&mut self, value: T) -> Self::Id;
     fn get(&self, id: Self::Id) -> Option<&T>;
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;
