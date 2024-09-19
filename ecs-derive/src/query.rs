@@ -9,8 +9,8 @@ use quote::quote;
 
 #[derive(Debug)]
 pub struct QueryOpts {
-    /// The structure of storages to query components from.
-    struct_of: syn::Expr,
+    /// The structure(s) of storages to query components from.
+    struct_ofs: Vec<syn::Expr>,
     /// The image (struct or tuple) to collect the components into.
     image: ImageOpts,
 }
@@ -19,12 +19,29 @@ pub struct QueryOpts {
 
 impl Parse for QueryOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let struct_of: syn::Expr = input.parse()?;
+        let struct_ofs = if input.peek(syn::token::Bracket) {
+            // Parse an array of struct_of's
+            // [a, b, c]
+            let list;
+            syn::bracketed!(list in input);
+            let items =
+                syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated(&list)?;
+            items.into_iter().collect()
+        } else {
+            // Parse a single struct_of
+            let struct_of: syn::Expr = input.parse()?;
+            vec![struct_of]
+        };
+
+        if struct_ofs.is_empty() {
+            panic!("Expected at least one item to query from");
+        }
+
         let _: syn::Token![,] = input.parse()?;
 
         let image: ImageOpts = input.parse()?;
 
-        Ok(Self { struct_of, image })
+        Ok(Self { struct_ofs, image })
     }
 }
 
@@ -59,53 +76,61 @@ impl QueryOpts {
             ImageOpts::Tuple { .. } => quote! { Some(( id, #(#field_names)* )) }, // tuple
         };
 
-        let storage = &self.struct_of;
-        let first_field = &fields.first().expect("at least one field expected").2;
-        let first_storage = first_field.access_storage(quote! { #storage });
-        let mut query = vec![quote! {
-            let ids = #first_storage.ids().collect::<Vec<_>>();
-        }];
+        let mut result = vec![];
+        for storage in &self.struct_ofs {
+            let first_field = &fields.first().expect("at least one field expected").2;
+            let first_storage = first_field.access_storage(quote! { #storage });
+            let mut query = vec![quote! {
+                let ids = #first_storage.ids().collect::<Vec<_>>();
+            }];
 
-        // Get each field
-        let id_expr = syn::Expr::Verbatim(quote! { id });
-        let ids_expr = syn::Expr::Verbatim(quote! { ids.clone().into_iter() }); // TODO: avoid cloning
-        query.extend(fields.iter().map(|(name, is_mut, optic)| {
-            if *is_mut {
-                let component = optic.access_many_mut(&ids_expr, quote! { #storage });
-                quote! { let #name = #component; }
-            } else {
-                let component = optic.access(&id_expr, quote! { #storage });
-                // TODO: avoid cloning
-                quote! { let #name = ids.clone().into_iter().map(|id| #component); }
+            // Get each field
+            let id_expr = syn::Expr::Verbatim(quote! { id });
+            let ids_expr = syn::Expr::Verbatim(quote! { ids.clone().into_iter() }); // TODO: avoid cloning
+            query.extend(fields.iter().map(|(name, is_mut, optic)| {
+                if *is_mut {
+                    let component = optic.access_many_mut(&ids_expr, quote! { #storage });
+                    quote! { let #name = #component; }
+                } else {
+                    let component = optic.access(&id_expr, quote! { #storage });
+                    // TODO: avoid cloning
+                    quote! { let #name = ids.clone().into_iter().map(|id| #component); }
+                }
+            }));
+
+            // Zip fields
+            query.push(quote! { #ids_expr });
+            query.extend(fields.iter().map(|(name, _, _)| {
+                quote! { .zip(#name) }
+            }));
+
+            // Construct args for map
+            let mut args = quote! { id };
+            for (name, _, _) in fields.iter() {
+                args = quote! { (#args, #name) };
             }
-        }));
 
-        // Zip fields
-        query.push(quote! { #ids_expr });
-        query.extend(fields.iter().map(|(name, _, _)| {
-            quote! { .zip(#name) }
-        }));
+            // Filter only values that are Some
+            let filtered = fields
+                .iter()
+                .map(|(name, _, _)| quote! { let #name = #name?; })
+                .collect::<Vec<_>>();
 
-        // Construct args for map
-        let mut args = quote! { id };
-        for (name, _, _) in fields.iter() {
-            args = quote! { (#args, #name) };
+            // map
+            query.push(quote! {
+                .filter_map(|#args| {
+                    #(#filtered)*
+                    #constructor
+                })
+            });
+
+            if result.is_empty() {
+                result.push(quote! { { #(#query)* } });
+            } else {
+                result.push(quote! { .chain({ #(#query)* }) });
+            }
         }
 
-        // Filter only values that are Some
-        let filtered = fields
-            .iter()
-            .map(|(name, _, _)| quote! { let #name = #name?; })
-            .collect::<Vec<_>>();
-
-        // map
-        query.push(quote! {
-            .filter_map(|#args| {
-                #(#filtered)*
-                #constructor
-            })
-        });
-
-        quote! { { #(#query)* } }
+        quote! { { #(#result)* } }
     }
 }

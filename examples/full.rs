@@ -177,6 +177,15 @@ fn main() {
         }
     }
 
+    // Query structurally similar types in a single query
+    {
+        println!("\nPositions of units and particles incremented:");
+        for (_, pos) in query!([world.units, world.particles], (&mut pos)) {
+            pos.0 += 1.0;
+            println!("{:?}", pos);
+        }
+    }
+
     // Query the whole nested storage
     {
         println!("\nNested units:");
