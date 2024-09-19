@@ -148,7 +148,23 @@ impl Parse for StructFieldOpts {
 impl Parse for TupleFieldOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut is_mut = false;
-        input.parse::<syn::Token![&]>()?;
+
+        if input.parse::<Option<syn::Token![&]>>()?.is_none() {
+            // Only `id` is allowed to be queries as-value
+            let span = input.span();
+            let optic: Optic = input.parse()?;
+            if !matches!(optic, Optic::GetId) {
+                return Err(syn::Error::new(
+                    span,
+                    "only `id` is allowed to be queried as-value. are you missing a `&`?",
+                ));
+            }
+            return Ok(Self {
+                is_mut: false,
+                optic,
+            });
+        }
+
         if input.parse::<Option<syn::Token![mut]>>()?.is_some() {
             is_mut = true;
         }

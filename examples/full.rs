@@ -104,7 +104,7 @@ fn main() {
 
         // Or just query into a tuple
         println!("\nQuerying into a tuple:");
-        for unit in query!(world.units, (&id, &pos, &tick)) {
+        for unit in query!(world.units, (id, &pos, &tick)) {
             println!("{:?}", unit);
         }
 
