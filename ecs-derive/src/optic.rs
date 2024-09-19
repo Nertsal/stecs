@@ -2,79 +2,6 @@ use darling::export::syn::{self, parse::Parse, punctuated::Punctuated};
 use proc_macro2::TokenStream;
 use quote::quote;
 
-// TODO: rewrite get! to use pre/post optics instead, and then implement query!
-
-#[derive(Debug, Clone)]
-pub enum PreOptic {
-    Id,
-    Field {
-        name: syn::Ident,
-        optic: Box<PreOptic>,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub enum PostOptic {
-    Id,
-    Some(Box<PostOptic>),
-}
-
-#[derive(Debug, Clone)]
-pub struct OpticN {
-    pub pre: PreOptic,
-    pub post: PostOptic,
-}
-
-impl PreOptic {
-    /// Access the storage of the target component.
-    pub fn access(&self, source: TokenStream) -> TokenStream {
-        match self {
-            PreOptic::Id => source,
-            PreOptic::Field { name, optic } => optic.access(quote! { #source.#name }),
-        }
-    }
-}
-
-impl PostOptic {
-    /// Whether the optic can fail to find the value.
-    fn is_optional(&self) -> bool {
-        match self {
-            PostOptic::Id => false,
-            PostOptic::Some(_) => true,
-        }
-    }
-
-    /// Access the targetted part of the component.
-    pub fn access(&self, is_mut: bool, source: TokenStream) -> TokenStream {
-        match self {
-            PostOptic::Id => source,
-            PostOptic::Some(optic) => {
-                let access_value = optic.access(is_mut, quote! { value });
-                let access_value = if optic.is_optional() {
-                    access_value
-                } else {
-                    quote! { Some(#access_value) }
-                };
-                if is_mut {
-                    quote! {
-                        match #source.as_mut() {
-                            None => None,
-                            Some(value) => { #access_value }
-                        }
-                    }
-                } else {
-                    quote! {
-                        match #source.as_ref() {
-                            None => None,
-                            Some(value) => { #access_value }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 // TODO: proper optics
 #[derive(Debug, Clone)]
 pub enum Optic {
@@ -108,6 +35,59 @@ impl Optic {
             Optic::Field { optic, .. } => optic.is_optional(),
             Optic::Some(_) => true,
             Optic::Get(_) => true,
+        }
+    }
+
+    /// Access the first available storage (before the first Get call).
+    pub fn access_storage(&self, source: TokenStream) -> TokenStream {
+        match self {
+            Optic::Id => source,
+            Optic::Field { name, optic } => optic.access_storage(quote! { #source.#name }),
+            Optic::Some(_) => todo!("optional storages not supported"),
+            Optic::Get(_) => source, // Target reached
+        }
+    }
+
+    /// Access many entities (identified by `ids`) mutably.
+    pub fn access_many_mut(&self, ids: &syn::Expr, source: TokenStream) -> TokenStream {
+        match self {
+            Optic::Id => source,
+            Optic::Field { name, optic } => optic.access_many_mut(ids, quote! { #source.#name }),
+            Optic::Some(optic) => {
+                let access_value = optic.access_many_mut(ids, quote! { value });
+                let access_value = if optic.is_optional() {
+                    access_value
+                } else {
+                    quote! { Some(#access_value) }
+                };
+                quote! {
+                    match #source {
+                        None => None,
+                        Some(value) => { #access_value }
+                    }
+                }
+            }
+            Optic::Get(optic) => {
+                let access_value = optic.access_many_mut(ids, quote! { value });
+                let access_value = if optic.is_optional() {
+                    quote! {
+                       match value {
+                           None => None,
+                           Some(value) => { #access_value }
+                       }
+                    }
+                } else {
+                    quote! {
+                        match value {
+                            None => None,
+                            Some(value) => Some(#access_value),
+                        }
+                    }
+                };
+                quote! {
+                    #source.get_many_mut(#ids).map(|value| #access_value)
+                }
+            }
         }
     }
 

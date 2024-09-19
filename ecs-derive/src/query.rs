@@ -30,40 +30,6 @@ impl Parse for QueryOpts {
 
 impl QueryOpts {
     pub fn query(self) -> TokenStream {
-        // let is_mut = match &self.image {
-        //     ImageOpts::Struct { fields, .. } => fields.iter().any(|field| field.is_mut),
-        //     ImageOpts::Tuple { fields } => fields.iter().any(|field| field.is_mut),
-        // };
-
-        // if !is_mut {
-        //     // units
-        //     //     .ids()
-        //     //     .flat_map(|id| ::ecs::get!(units, id, (pos, body.tick)))
-        //     let get = crate::get::StorageGetOpts {
-        //         struct_of: self.struct_of.clone(),
-        //         id: syn::Expr::Verbatim(quote! { id }),
-        //         image: self.image,
-        //     }
-        //     .get();
-
-        //     let storage = &self.struct_of;
-        //     return quote! {{
-        //         #storage.ids().flat_map(|id| { #get }.map(|item| (id, item)))
-        //     }};
-        // }
-
-        // let ids = world.units.ids().collect::<Vec<_>>();
-        // let health = world.units.health.get_many_mut(ids.clone().into_iter());
-        // let damage = ids.clone().into_iter().map(|id| world.units.damage.get(id));
-        // ids.into_iter()
-        //     .zip(health)
-        //     .zip(damage)
-        //     .filter_map(|((id, health), damage)| {
-        //         let health = health?;
-        //         let damage = damage?;
-        //         Some((id, (health, damage)))
-        //     })
-
         let fields: Vec<(syn::Ident, bool, Optic)> = match &self.image {
             ImageOpts::Struct { fields, .. } => fields
                 .iter()
@@ -94,22 +60,52 @@ impl QueryOpts {
         };
 
         let storage = &self.struct_of;
-        let mut query = vec![quote! { let ids = #storage.ids().collect::<Vec<_>>(); }];
+        let first_field = &fields.first().expect("at least one field expected").2;
+        let first_storage = first_field.access_storage(quote! { #storage });
+        let mut query = vec![quote! {
+            let ids = #first_storage.ids().collect::<Vec<_>>();
+        }];
 
         // Get each field
         let id_expr = syn::Expr::Verbatim(quote! { id });
+        let ids_expr = syn::Expr::Verbatim(quote! { ids.clone().into_iter() }); // TODO: avoid cloning
         query.extend(fields.iter().map(|(name, is_mut, optic)| {
-            // TODO: avoid cloning
             if *is_mut {
-                let component = optic.access_mut(&id_expr, quote! { #storage });
-                quote! { let #name = #component }
+                let component = optic.access_many_mut(&ids_expr, quote! { #storage });
+                quote! { let #name = #component; }
             } else {
                 let component = optic.access(&id_expr, quote! { #storage });
+                // TODO: avoid cloning
                 quote! { let #name = ids.clone().into_iter().map(|id| #component); }
             }
         }));
 
-        let q = quote! { #(#query)* };
-        panic!("{}", q);
+        // Zip fields
+        query.push(quote! { #ids_expr });
+        query.extend(fields.iter().map(|(name, _, _)| {
+            quote! { .zip(#name) }
+        }));
+
+        // Construct args for map
+        let mut args = quote! { id };
+        for (name, _, _) in fields.iter() {
+            args = quote! { (#args, #name) };
+        }
+
+        // Filter only values that are Some
+        let filtered = fields
+            .iter()
+            .map(|(name, _, _)| quote! { let #name = #name?; })
+            .collect::<Vec<_>>();
+
+        // map
+        query.push(quote! {
+            .filter_map(|#args| {
+                #(#filtered)*
+                #constructor
+            })
+        });
+
+        quote! { { #(#query)* } }
     }
 }

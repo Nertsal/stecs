@@ -129,29 +129,12 @@ fn main() {
     {
         // Iterate mutably over all units' healths
         println!("\nHealths:");
-        let ids = world.units.ids().collect::<Vec<_>>();
-        // for (id, (health,)) in query!(world.units, (&mut health, &damage)) {
-
-        let health_iter_mut = {
-            let ids = world.units.ids().collect::<Vec<_>>();
-            let health = world.units.health.get_many_mut(ids.clone().into_iter());
-            let damage = ids.clone().into_iter().map(|id| world.units.damage.get(id));
-            ids.into_iter()
-                .zip(health)
-                .zip(damage)
-                .filter_map(|((id, health), damage)| {
-                    let health = health?;
-                    let damage = damage?;
-                    Some((id, (health, damage)))
-                })
-        };
-        for (_id, (health, _damage)) in health_iter_mut {
+        for (_id, health) in query!(world.units, (&mut health)) {
             println!("Updating {health:?}");
 
             // Iterate mutably over all units' ticks
             println!("  Inner query over ticks:");
-            for &id in &ids {
-                let (tick,) = get!(world.units, id, (&mut tick)).unwrap();
+            for (_id, tick) in query!(world.units, (&mut tick)) {
                 println!("  Incrementing {tick:?}");
                 *tick += 1;
             }
@@ -161,8 +144,7 @@ fn main() {
 
         // Iterate over all units' healths again
         println!("\nUpdated healths");
-        for id in ids {
-            let (health,) = get!(world.units, id, (&health)).unwrap();
+        for (_id, health) in query!(world.units, (&health)) {
             println!("{:?}", health);
         }
     }
