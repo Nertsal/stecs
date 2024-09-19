@@ -12,7 +12,7 @@ pub struct SplitOpts {
     data: ast::Data<(), FieldOpts>,
     generics: syn::Generics,
     debug: Option<()>,
-    to_owned: Option<()>,
+    clone: Option<()>,
 }
 
 #[derive(FromField)]
@@ -72,7 +72,7 @@ impl TryFrom<SplitOpts> for Struct {
             fields,
             generics: value.generics,
             debug: value.debug.is_some(),
-            to_owned: value.to_owned.is_some(),
+            to_owned: value.clone.is_some(),
         })
     }
 }
@@ -140,6 +140,19 @@ impl Struct {
             )
         };
 
+        let to_owned_constraints = struct_generics
+            .params
+            .iter()
+            .map(|generic| match generic {
+                syn::GenericParam::Lifetime(_) => quote! {},
+                syn::GenericParam::Type(param) => {
+                    let name = &param.ident;
+                    quote! { #name: ::std::clone::Clone, }
+                }
+                syn::GenericParam::Const(_) => quote! {},
+            })
+            .collect::<Vec<_>>();
+
         let struct_to_owneded = {
             let fields = struct_fields
                 .iter()
@@ -150,7 +163,9 @@ impl Struct {
                 .collect::<Vec<_>>();
 
             quote! {
-                pub fn to_owned(&self) -> #struct_name {
+                pub fn clone(&self) -> #struct_name<#generics_use>
+                where #(#to_owned_constraints)*
+                {
                     #struct_name {
                         #(#fields)*
                     }
@@ -181,13 +196,13 @@ impl Struct {
                 quote! {}
             };
             let struct_ref = quote! {
-                #vis struct #struct_ref_name<'a, #generics> {
+                #vis struct #struct_ref_name<'a, #generics_use> {
                     #(#fields)*
                 }
             };
             let to_owned = if struct_to_owned {
                 quote! {
-                    impl #struct_ref_name<'_, #generics> {
+                    impl<#generics> #struct_ref_name<'_, #generics_use> {
                         #struct_to_owneded
                     }
                 }
@@ -227,13 +242,13 @@ impl Struct {
                 quote! {}
             };
             let struct_ref = quote! {
-                #vis struct #struct_ref_mut_name<'a, #generics> {
+                #vis struct #struct_ref_mut_name<'a, #generics_use> {
                     #(#fields)*
                 }
             };
             let to_owned = if struct_to_owned {
                 quote! {
-                    impl #struct_ref_mut_name<'_, #generics> {
+                    impl<#generics> #struct_ref_mut_name<'_, #generics_use> {
                         #struct_to_owneded
                     }
                 }

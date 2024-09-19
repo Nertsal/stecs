@@ -5,12 +5,14 @@ struct World<'a> {
 }
 
 #[derive(SplitFields)]
+#[split(debug, clone)]
 struct Position<T: 'static> {
     x: T,
     y: T,
 }
 
 #[derive(SplitFields)]
+#[split(debug, clone)]
 struct Unit<'b> {
     #[split(nested)]
     position: Position<f32>,

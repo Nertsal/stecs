@@ -29,7 +29,7 @@ struct Corpse {
 }
 
 #[derive(SplitFields, Debug)]
-#[split(to_owned)] // implement to_owned method for the `ParticleRef` generated struct to clone the data into a `Particle`
+#[split(clone)] // implement to_owned method for the `ParticleRef` generated struct to clone the data into a `Particle`
 struct Particle {
     pos: (f32, f32),
     time: f32,
@@ -83,7 +83,7 @@ fn main() {
     // Iterate over all fields of all particles
     println!("\nParticles:");
     for (_, particle) in world.particles.iter() {
-        let particle_cloned: Particle = particle.to_owned();
+        let particle_cloned: Particle = particle.clone();
         println!("{particle_cloned:?}");
     }
 
