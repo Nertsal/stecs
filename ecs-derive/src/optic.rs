@@ -110,7 +110,7 @@ impl Optic {
     fn access_impl(&self, is_mut: bool, id: &syn::Expr, source: TokenStream) -> TokenStream {
         match self {
             Optic::Id => source,
-            Optic::GetId => quote! { id },
+            Optic::GetId => quote! { #id },
             Optic::Field { name, optic } => optic.access_impl(is_mut, id, quote! { #source.#name }),
             Optic::Some(optic) => {
                 let access_value = optic.access_impl(is_mut, id, quote! { value });

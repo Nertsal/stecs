@@ -202,10 +202,20 @@ impl StorageGetOpts {
             } else {
                 optic.access(id, quote! { #storage })
             };
-            get_fields = quote! {
-                match #component {
-                    None => None,
-                    Some(#name) => { #get_fields }
+
+            get_fields = if optic.is_optional() {
+                quote! {
+                    match #component {
+                        None => None,
+                        Some(#name) => { #get_fields }
+                    }
+                }
+            } else {
+                quote! {
+                    {
+                        let #name = #component;
+                        #get_fields
+                    }
                 }
             };
         }
