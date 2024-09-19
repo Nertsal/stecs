@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 use ecs::prelude::*;
 
 #[derive(Clone)] // `StructOf` implements Clone if possible
@@ -12,7 +11,6 @@ struct GameWorld {
 #[derive(SplitFields, Debug)]
 #[split(debug)] // derive `Debug` for the `UnitRef` generated struct
 struct Unit {
-    // id: Id,
     pos: (f32, f32),
     health: f32,
     tick: usize,
@@ -76,13 +74,13 @@ fn main() {
 
     // Iterate over all fields of all units
     println!("Units:");
-    for unit in world.units.iter() {
+    for (_id, unit) in world.units.iter() {
         println!("{unit:?}");
     }
 
     // Iterate over all fields of all particles
     println!("\nParticles:");
-    for (_, particle) in world.particles.iter() {
+    for (_id, particle) in world.particles.iter() {
         let particle_cloned: Particle = particle.clone();
         println!("{particle_cloned:?}");
     }
@@ -94,18 +92,19 @@ fn main() {
         // Declare a view struct to query into
         #[derive(Debug)]
         struct UnitRef<'a> {
+            id: usize,
             pos: &'a (f32, f32),
             tick: &'a usize,
         }
 
         println!("\nQuerying into a struct:");
-        for unit in query!(world.units, UnitRef { pos, tick }) {
+        for unit in query!(world.units, UnitRef { id, pos, tick }) {
             println!("{:?}", unit);
         }
 
         // Or just query into a tuple
         println!("\nQuerying into a tuple:");
-        for unit in query!(world.units, (&pos, &tick)) {
+        for unit in query!(world.units, (&id, &pos, &tick)) {
             println!("{:?}", unit);
         }
 
@@ -129,12 +128,12 @@ fn main() {
     {
         // Iterate mutably over all units' healths
         println!("\nHealths:");
-        for (_id, health) in query!(world.units, (&mut health)) {
+        for health in query!(world.units, (&mut health)) {
             println!("Updating {health:?}");
 
             // Iterate mutably over all units' ticks
             println!("  Inner query over ticks:");
-            for (_id, tick) in query!(world.units, (&mut tick)) {
+            for tick in query!(world.units, (&mut tick)) {
                 println!("  Incrementing {tick:?}");
                 *tick += 1;
             }
@@ -144,7 +143,7 @@ fn main() {
 
         // Iterate over all units' healths again
         println!("\nUpdated healths");
-        for (_id, health) in query!(world.units, (&health)) {
+        for health in query!(world.units, (&health)) {
             println!("{:?}", health);
         }
     }
@@ -153,34 +152,28 @@ fn main() {
     {
         println!("\nTicks inside units inside corpses:");
         // `tick` is located inside `unit`
-        for corpse in query!(world.corpses, (&unit.tick)) {
-            println!("{:?}", corpse);
+        for tick in query!(world.corpses, (&unit.tick)) {
+            println!("{:?}", tick);
         }
     }
 
-    // Query multiple entity types at the same time
+    // Combine queries of multiple entity types
     {
-        // Declare a view struct to have the same access to both entities
-        #[derive(Debug)]
-        struct PosRef<'a> {
-            pos: &'a (f32, f32),
-        }
-
         println!("\nPositions of units and corpses:");
-        let units = query!(world.units, PosRef { pos });
+        let units = query!(world.units, (&pos));
         // And we can have different access patterns for each entity
         // so we can access the position of the nested unit of the corpse
-        let particles = query!(world.corpses, PosRef { pos: &unit.pos });
+        let corpses = query!(world.corpses, (&unit.pos));
 
-        for item in units.chain(particles) {
-            println!("{:?}", item);
+        for pos in units.chain(corpses) {
+            println!("{:?}", pos);
         }
     }
 
     // Query structurally similar types in a single query
     {
         println!("\nPositions of units and particles incremented:");
-        for (_, pos) in query!([world.units, world.particles], (&mut pos)) {
+        for pos in query!([world.units, world.particles], (&mut pos)) {
             pos.0 += 1.0;
             println!("{:?}", pos);
         }
@@ -189,8 +182,8 @@ fn main() {
     // Query the whole nested storage
     {
         println!("\nNested units:");
-        for item in query!(world.corpses, (&unit)) {
-            println!("{:?}", item);
+        for unit in query!(world.corpses, (&unit)) {
+            println!("{:?}", unit);
         }
     }
 

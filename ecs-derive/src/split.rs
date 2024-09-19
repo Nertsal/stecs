@@ -95,6 +95,12 @@ impl Struct {
             to_owned: struct_to_owned,
         } = self;
 
+        if struct_fields.iter().any(|field| field.name == "id") {
+            panic!(
+                "`id` is not allowed to be a field name, as it is used as a keyword inside queries"
+            );
+        }
+
         let struct_of_name = syn::Ident::new(
             &format!("{struct_name}StructOf"),
             proc_macro2::Span::call_site(),

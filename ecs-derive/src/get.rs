@@ -119,9 +119,16 @@ impl Parse for StructFieldOpts {
 
             input.parse::<Optic>()?
         } else {
-            Optic::Field {
-                name: name.clone(),
-                optic: Box::new(Optic::Get(Box::new(Optic::Id))),
+            // NOTE: `id` is treated specially to get the id of the entity,
+            // so it is not allowed as a field inside Archetype's
+            if name == "id" {
+                Optic::GetId
+            } else {
+                let optic = Box::new(Optic::Get(Box::new(Optic::Id)));
+                Optic::Field {
+                    name: name.clone(),
+                    optic,
+                }
             }
         };
 

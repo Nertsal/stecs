@@ -6,19 +6,22 @@ use quote::quote;
 #[derive(Debug, Clone)]
 pub enum Optic {
     Id,
-    Field { name: syn::Ident, optic: Box<Optic> },
+    /// Gets Id of the entity.
+    GetId,
+    Field {
+        name: syn::Ident,
+        optic: Box<Optic>,
+    },
     Some(Box<Optic>),
     Get(Box<Optic>),
 }
-
-#[derive(thiserror::Error, Debug)]
-pub enum ParseError {}
 
 impl Optic {
     /// Compose two optics sequentially.
     pub fn compose(self, tail: Self) -> Self {
         match self {
             Optic::Id => tail,
+            Optic::GetId => unreachable!("GetId cannot be composed"),
             Optic::Field { name, optic } => Optic::Field {
                 name,
                 optic: Box::new(optic.compose(tail)),
@@ -29,9 +32,10 @@ impl Optic {
     }
 
     /// Whether the optic can fail to find the value.
-    fn is_optional(&self) -> bool {
+    pub fn is_optional(&self) -> bool {
         match self {
             Optic::Id => false,
+            Optic::GetId => false,
             Optic::Field { optic, .. } => optic.is_optional(),
             Optic::Some(_) => true,
             Optic::Get(_) => true,
@@ -42,6 +46,7 @@ impl Optic {
     pub fn access_storage(&self, source: TokenStream) -> TokenStream {
         match self {
             Optic::Id => source,
+            Optic::GetId => source,
             Optic::Field { name, optic } => optic.access_storage(quote! { #source.#name }),
             Optic::Some(_) => todo!("optional storages not supported"),
             Optic::Get(_) => source, // Target reached
@@ -52,6 +57,7 @@ impl Optic {
     pub fn access_many_mut(&self, ids: &syn::Expr, source: TokenStream) -> TokenStream {
         match self {
             Optic::Id => source,
+            Optic::GetId => quote! { #ids },
             Optic::Field { name, optic } => optic.access_many_mut(ids, quote! { #source.#name }),
             Optic::Some(optic) => {
                 let access_value = optic.access_many_mut(ids, quote! { value });
@@ -104,6 +110,7 @@ impl Optic {
     fn access_impl(&self, is_mut: bool, id: &syn::Expr, source: TokenStream) -> TokenStream {
         match self {
             Optic::Id => source,
+            Optic::GetId => quote! { id },
             Optic::Field { name, optic } => optic.access_impl(is_mut, id, quote! { #source.#name }),
             Optic::Some(optic) => {
                 let access_value = optic.access_impl(is_mut, id, quote! { value });
@@ -157,6 +164,7 @@ impl Optic {
 
 enum OpticPart {
     Id,
+    GetId,
     Some,
     Field(syn::Ident),
     Get,
@@ -171,6 +179,12 @@ impl Parse for Optic {
         for part in parts.into_iter().rev() {
             optic = match part {
                 OpticPart::Id => optic,
+                OpticPart::GetId => {
+                    if !matches!(optic, Optic::Id) {
+                        return Err(input.error("`id` must be the first and only optic part"));
+                    }
+                    Optic::GetId
+                }
                 OpticPart::Some => Optic::Some(Box::new(optic)),
                 OpticPart::Field(name) => Optic::Field {
                     name,
@@ -183,7 +197,7 @@ impl Parse for Optic {
             };
         }
 
-        if !has_get {
+        if !matches!(optic, Optic::GetId) && !has_get {
             optic = optic.compose(Optic::Get(Box::new(Optic::Id)));
         }
 
@@ -196,6 +210,7 @@ impl Parse for OpticPart {
         let ident: syn::Ident = input.parse()?;
         let part = match ident.to_string().as_str() {
             "_id" => Self::Id,
+            "id" => Self::GetId,
             "Some" => Self::Some,
             "Get" => Self::Get,
             _ => Self::Field(ident),

@@ -66,27 +66,28 @@ impl QueryOpts {
             return quote! { ::std::iter::empty() };
         }
 
-        let field_names: Vec<_> = fields
-            .iter()
-            .map(|(name, _, _)| quote! { #name, })
-            .collect();
-
+        let field_names: Vec<_> = fields.iter().map(|(name, _, _)| quote! { #name }).collect();
         let constructor = match self.image {
-            ImageOpts::Struct { ident, .. } => quote! { Some((id, #ident { #(#field_names)* })) }, // struct
-            ImageOpts::Tuple { .. } => quote! { Some(( id, #(#field_names)* )) }, // tuple
+            ImageOpts::Struct { ident, .. } => quote! { Some(#ident { #(#field_names),* }) }, // struct
+            ImageOpts::Tuple { .. } => quote! { Some(( #(#field_names),* )) }, // tuple
         };
 
         let mut result = vec![];
         for storage in &self.struct_ofs {
-            let first_field = &fields.first().expect("at least one field expected").2;
+            let first_field = &fields
+                .iter()
+                .find(|(_, _, optic)| !matches!(optic, Optic::GetId))
+                .expect("at least one non-id field expected")
+                .2;
             let first_storage = first_field.access_storage(quote! { #storage });
             let mut query = vec![quote! {
-                let ids = #first_storage.ids().collect::<Vec<_>>();
+                // NOTE: weird name to avoid name conflicts with struct fields
+                let _pls_dont_use_ids = #first_storage.ids().collect::<Vec<_>>();
             }];
 
             // Get each field
             let id_expr = syn::Expr::Verbatim(quote! { id });
-            let ids_expr = syn::Expr::Verbatim(quote! { ids.clone().into_iter() }); // TODO: avoid cloning
+            let ids_expr = syn::Expr::Verbatim(quote! { _pls_dont_use_ids.clone().into_iter() }); // TODO: avoid cloning
             query.extend(fields.iter().map(|(name, is_mut, optic)| {
                 if *is_mut {
                     let component = optic.access_many_mut(&ids_expr, quote! { #storage });
@@ -94,26 +95,40 @@ impl QueryOpts {
                 } else {
                     let component = optic.access(&id_expr, quote! { #storage });
                     // TODO: avoid cloning
-                    quote! { let #name = ids.clone().into_iter().map(|id| #component); }
+                    quote! { let #name = _pls_dont_use_ids.clone().into_iter().map(|id| #component); }
                 }
             }));
 
             // Zip fields
-            query.push(quote! { #ids_expr });
-            query.extend(fields.iter().map(|(name, _, _)| {
+            query.push(quote! {});
+            let mut tail = fields.iter();
+            if let Some((name, _, _)) = tail.next() {
+                query.push(quote! { #name });
+            }
+            query.extend(tail.map(|(name, _, _)| {
                 quote! { .zip(#name) }
             }));
 
             // Construct args for map
-            let mut args = quote! { id };
-            for (name, _, _) in fields.iter() {
+            let mut args = quote! {};
+            let mut tail = fields.iter();
+            if let Some((name, _, _)) = tail.next() {
+                args = quote! { #name };
+            }
+            for (name, _, _) in tail {
                 args = quote! { (#args, #name) };
             }
 
             // Filter only values that are Some
             let filtered = fields
                 .iter()
-                .map(|(name, _, _)| quote! { let #name = #name?; })
+                .map(|(name, _, optic)| {
+                    if optic.is_optional() {
+                        quote! { let #name = #name?; }
+                    } else {
+                        quote! {}
+                    }
+                })
                 .collect::<Vec<_>>();
 
             // map

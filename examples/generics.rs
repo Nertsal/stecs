@@ -36,7 +36,7 @@ fn main() {
         name: &unit_name2,
     });
 
-    for (_, name) in query!(world.units, (&name)) {
+    for name in query!(world.units, (&name)) {
         println!("unit: {:?}", name);
     }
 }
