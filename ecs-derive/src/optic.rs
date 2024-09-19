@@ -33,6 +33,7 @@ impl Optic {
         }
     }
 
+    // TODO: rethink this
     /// Whether the optic can fail to get many values.
     pub fn is_optional_many(&self) -> bool {
         match self {

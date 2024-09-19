@@ -219,7 +219,17 @@ impl StorageGetOpts {
                 optic.access(id, quote! { #storage })
             };
 
-            get_fields = if optic.is_optional() {
+            get_fields = if optic.is_optional_many() {
+                // Get + Prism -> Option<Option<T>>
+                quote! {
+                    match #component {
+                        None => None,
+                        Some(None) => None,
+                        Some(Some(#name)) => { #get_fields }
+                    }
+                }
+            } else if optic.is_optional() {
+                // Get + Lens -> Option<T>
                 quote! {
                     match #component {
                         None => None,
@@ -227,6 +237,8 @@ impl StorageGetOpts {
                     }
                 }
             } else {
+                // Lens -> Option<T>
+                // just `id`
                 quote! {
                     {
                         let #name = #component;

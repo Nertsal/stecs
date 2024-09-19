@@ -94,11 +94,18 @@ fn main() {
         struct UnitRef<'a> {
             id: usize,
             pos: &'a (f32, f32),
-            tick: &'a usize,
+            damage: &'a f32,
         }
 
         println!("\nQuerying into a struct:");
-        for unit in query!(world.units, UnitRef { id, pos, tick }) {
+        for unit in query!(
+            world.units,
+            UnitRef {
+                id,
+                pos,
+                damage: &damage.Get.Some
+            }
+        ) {
             println!("{:?}", unit);
         }
 
@@ -110,7 +117,19 @@ fn main() {
 
         // Query a single entity
         println!("\nSingle entity:");
-        if let Some(player) = get!(world.units, player_id, (&pos, &tick)) {
+        if let Some(player) = get!(world.units, player_id, (id, &pos, &damage.Get.Some)) {
+            println!("{:?}", player);
+        }
+
+        if let Some(player) = get!(
+            world.units,
+            player_id,
+            UnitRef {
+                id,
+                pos,
+                damage: &damage.Get.Some
+            }
+        ) {
             println!("{:?}", player);
         }
     }
