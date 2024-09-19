@@ -303,7 +303,7 @@ impl Struct {
         };
 
         let struct_of = {
-            let fields = struct_fields
+            let mut fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
@@ -318,6 +318,7 @@ impl Struct {
                     }
                 })
                 .collect::<Vec<_>>();
+            fields.push(quote! { pub ids: F::Storage<()>, });
 
             quote! {
                 #vis struct #struct_of_name<#generics_family> {
@@ -327,7 +328,7 @@ impl Struct {
         };
 
         let struct_of_clone = {
-            let constraints = struct_fields
+            let mut constraints = struct_fields
                 .iter()
                 .map(|field| {
                     let ty = &field.ty;
@@ -338,11 +339,16 @@ impl Struct {
                     }
                 })
                 .collect::<Vec<_>>();
+            constraints.push(quote! { F::Storage<()>: Clone });
 
-            let clone = struct_fields.iter().map(|field| {
-                let name = &field.name;
-                quote! { #name: self.#name.clone(), }
-            });
+            let mut clone = struct_fields
+                .iter()
+                .map(|field| {
+                    let name = &field.name;
+                    quote! { #name: self.#name.clone(), }
+                })
+                .collect::<Vec<_>>();
+            clone.push(quote! { ids: self.ids.clone(), });
 
             quote! {
                 impl<#generics_family> Clone for #struct_of_name<#generics_family_use>
@@ -405,13 +411,14 @@ impl Struct {
                     .iter()
                     .map(|field| {
                         let name = &field.name;
-                        // TODO: Avoid cloning
-                        quote! { let #name = self.#name.get_many_mut(ids.clone().into_iter()); }
+                        quote! {
+                            let #name = unsafe { self.#name.get_many_unchecked_mut(self.ids.ids()) };
+                        }
                     })
                     .collect();
 
                 // Zip fields
-                let zip = std::iter::once(quote! { ids.into_iter() }).chain(
+                let zip = std::iter::once(quote! { self.ids.ids() }).chain(
                     struct_fields.iter().map(|field| {
                         let name = &field.name;
                         quote! { .zip(#name) }
@@ -425,21 +432,11 @@ impl Struct {
                     args = quote! { (#args, #field) };
                 }
 
-                // Filter fields to only Some
-                let filter_fields = struct_fields
-                    .iter()
-                    .map(|field| {
-                        let name = &field.name;
-                        quote! { let #name = #name?; }
-                    })
-                    .collect::<Vec<_>>();
-
                 get_many_mut = iter_mut.clone();
 
                 // Construct the lambda function
                 iter_mut.push(quote! {
                     .filter_map(|#args| {
-                        #(#filter_fields)*
                         Some((
                             id,
                             #struct_ref_mut_name {
@@ -451,11 +448,9 @@ impl Struct {
 
                 get_many_mut.push(quote! {
                     .map(|#args| {
-                        #(#filter_fields)*
-                        Some(#struct_ref_mut_name {
+                        #struct_ref_mut_name {
                             #(#fields)*
                         }
-                        )
                     })
                 });
             }
@@ -487,15 +482,13 @@ impl Struct {
 
                     pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a, #generics_use>)> + 'a {
                         use ::ecs::archetype::Archetype;
-                        let ids: Vec<_> = self.ids().collect(); // TODO: avoid allocation
                         #(#iter_mut)*
                     }
 
-                    pub fn get_many_mut<'a>(
+                    pub unsafe fn get_many_unchecked_mut<'a>(
                         &'a mut self,
                         ids: impl Iterator<Item = F::Id>,
-                    ) -> impl Iterator<Item = Option<#struct_ref_mut_name<'a, #generics_use>>> {
-                        let ids: Vec<_> = ids.collect(); // TODO: avoid allocation
+                    ) -> impl Iterator<Item = #struct_ref_mut_name<'a, #generics_use>> {
                         #(#get_many_mut)*
                     }
                 }
@@ -517,10 +510,11 @@ impl Struct {
                 .map(|field| {
                     let name = &field.name;
                     quote! {
-                        let id = self.#name.insert(value.#name);
+                        self.#name.insert(value.#name);
                     }
                 })
                 .collect::<Vec<_>>();
+            insert.push(quote! { let id = self.ids.insert(()); });
             insert.push(quote! { id });
 
             let mut remove = struct_fields
@@ -532,6 +526,7 @@ impl Struct {
                     }
                 })
                 .collect::<Vec<_>>();
+            remove.push(quote! { self.ids.remove(id)?; });
             let fields = struct_fields
                 .iter()
                 .map(|field| {
@@ -541,22 +536,12 @@ impl Struct {
                 .collect::<Vec<_>>();
             remove.push(quote! { Some( #struct_name { #(#fields),* } )});
 
-            let ids = struct_fields
-                .first()
-                .map(|field| {
-                    let name = &field.name;
-                    quote! {
-                        self.#name.ids()
-                    }
-                })
-                .expect("Expected at least one field");
-
             quote! {
                 impl<#generics_family> ::ecs::archetype::Archetype<F> for #struct_of_name<#generics_family_use> {
                     type Item = #struct_name<#generics_use>;
                     fn ids(&self) -> impl Iterator<Item = F::Id> {
                         use ::ecs::storage::Storage;
-                        #ids
+                        self.ids.ids()
                     }
                     fn insert(&mut self, value: Self::Item) -> F::Id {
                         use ::ecs::storage::Storage;
@@ -585,6 +570,7 @@ impl Struct {
                 impl<#generics_family> Default for #struct_of_name<#generics_family_use> {
                     fn default() -> Self {
                         Self {
+                            ids: Default::default(),
                             #(#fields),*
                         }
                     }

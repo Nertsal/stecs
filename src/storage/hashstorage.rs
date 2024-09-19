@@ -48,23 +48,22 @@ impl<T> Storage<T> for HashStorage<T> {
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         self.inner.remove(&id)
     }
-    fn get_many_mut<'a>(
+    unsafe fn get_many_unchecked_mut<'a>(
         &'a mut self,
         ids: impl Iterator<Item = Self::Id>,
-    ) -> impl Iterator<Item = Option<&'a mut T>>
+    ) -> impl Iterator<Item = &'a mut T>
     where
         T: 'a,
     {
-        let mut collected = Vec::new(); // TODO: remove allocation
+        // let mut collected = Vec::new(); // TODO: remove allocation
         ids.map(move |i| {
-            if collected.contains(&i) {
-                return None;
-            }
+            // if collected.contains(&i) {
+            //     panic!("repeated id");
+            // }
             // SAFETY: `collected` checks that no id's are repeated.
-            self.get_mut(i).map(|r| {
-                collected.push(i);
-                unsafe { &mut *(r as *mut T) }
-            })
+            let r = self.get_mut(i).expect("invalid id: entry absent");
+            // collected.push(i);
+            unsafe { &mut *(r as *mut T) }
         })
     }
 }

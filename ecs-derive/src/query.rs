@@ -74,28 +74,27 @@ impl QueryOpts {
 
         let mut result = vec![];
         for storage in &self.struct_ofs {
-            let first_field = &fields
-                .iter()
-                .find(|(_, _, optic)| !matches!(optic, Optic::GetId))
-                .expect("at least one non-id field expected")
-                .2;
-            let first_storage = first_field.access_storage(quote! { #storage });
-            let mut query = vec![quote! {
-                // NOTE: weird name to avoid name conflicts with struct fields
-                let _pls_dont_use_ids = #first_storage.ids().collect::<Vec<_>>();
-            }];
+            let mut query = vec![];
 
             // Get each field
             let id_expr = syn::Expr::Verbatim(quote! { id });
-            let ids_expr = syn::Expr::Verbatim(quote! { _pls_dont_use_ids.clone().into_iter() }); // TODO: avoid cloning
+            let ids_expr = syn::Expr::Verbatim(quote! { #storage.ids.ids() });
             query.extend(fields.iter().map(|(name, is_mut, optic)| {
                 if *is_mut {
                     let component = optic.access_many_mut(&ids_expr, quote! { #storage });
                     quote! { let #name = #component; }
+                } else if matches!(optic, Optic::GetId) {
+                    quote! {
+                        let #name = #ids_expr;
+                    }
                 } else {
                     let component = optic.access(&id_expr, quote! { #storage });
-                    // TODO: avoid cloning
-                    quote! { let #name = _pls_dont_use_ids.clone().into_iter().map(|id| #component); }
+                    quote! {
+                        let #name = #ids_expr.map(|id| {
+                            let value = #component;
+                            value.expect("`id` must be valid")
+                        });
+                    }
                 }
             }));
 
@@ -123,7 +122,7 @@ impl QueryOpts {
             let filtered = fields
                 .iter()
                 .map(|(name, _, optic)| {
-                    if optic.is_optional() {
+                    if optic.is_optional_many() {
                         quote! { let #name = #name?; }
                     } else {
                         quote! {}

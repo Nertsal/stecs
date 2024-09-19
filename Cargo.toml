@@ -16,3 +16,10 @@ members = ["ecs-derive"]
 [dependencies]
 ecs-derive = { path = "ecs-derive" }
 generational-arena = { version = "0.2.9", optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+
+[[bench]]
+name = "pos_vel"
+harness = false

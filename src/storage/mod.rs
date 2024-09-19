@@ -17,10 +17,16 @@ pub trait Storage<T>: Default {
     fn get(&self, id: Self::Id) -> Option<&T>;
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;
     fn remove(&mut self, id: Self::Id) -> Option<T>;
-    fn get_many_mut<'a>(
+
+    /// Get mutable references to all id's in the iterator.
+    ///
+    /// # Safety
+    /// `ids` given must not repeat and be valid and present id's in the storage.
+    ///
+    unsafe fn get_many_unchecked_mut<'a>(
         &'a mut self,
         ids: impl Iterator<Item = Self::Id>,
-    ) -> impl Iterator<Item = Option<&'a mut T>>
+    ) -> impl Iterator<Item = &'a mut T>
     where
         T: 'a;
 }

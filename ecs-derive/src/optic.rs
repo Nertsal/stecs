@@ -3,6 +3,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 // TODO: proper optics
+// TODO: like actually split into multiple storage and component parts
+// TODO: filter out noop's like .map(|x| x)
 #[derive(Debug, Clone)]
 pub enum Optic {
     Id,
@@ -31,6 +33,17 @@ impl Optic {
         }
     }
 
+    /// Whether the optic can fail to get many values.
+    pub fn is_optional_many(&self) -> bool {
+        match self {
+            Optic::Id => false,
+            Optic::GetId => false,
+            Optic::Field { optic, .. } => optic.is_optional_many(),
+            Optic::Some(_) => true,
+            Optic::Get(optic) => optic.is_optional_many(),
+        }
+    }
+
     /// Whether the optic can fail to find the value.
     pub fn is_optional(&self) -> bool {
         match self {
@@ -39,17 +52,6 @@ impl Optic {
             Optic::Field { optic, .. } => optic.is_optional(),
             Optic::Some(_) => true,
             Optic::Get(_) => true,
-        }
-    }
-
-    /// Access the first available storage (before the first Get call).
-    pub fn access_storage(&self, source: TokenStream) -> TokenStream {
-        match self {
-            Optic::Id => source,
-            Optic::GetId => source,
-            Optic::Field { name, optic } => optic.access_storage(quote! { #source.#name }),
-            Optic::Some(_) => todo!("optional storages not supported"),
-            Optic::Get(_) => source, // Target reached
         }
     }
 
@@ -75,23 +77,8 @@ impl Optic {
             }
             Optic::Get(optic) => {
                 let access_value = optic.access_many_mut(ids, quote! { value });
-                let access_value = if optic.is_optional() {
-                    quote! {
-                       match value {
-                           None => None,
-                           Some(value) => { #access_value }
-                       }
-                    }
-                } else {
-                    quote! {
-                        match value {
-                            None => None,
-                            Some(value) => Some(#access_value),
-                        }
-                    }
-                };
                 quote! {
-                    #source.get_many_mut(#ids).map(|value| #access_value)
+                    unsafe { #source.get_many_unchecked_mut(#ids) }.map(|value| #access_value)
                 }
             }
         }
@@ -137,11 +124,7 @@ impl Optic {
             }
             Optic::Get(optic) => {
                 let access_value = optic.access_impl(is_mut, id, quote! { value });
-                let access_value = if optic.is_optional() {
-                    access_value
-                } else {
-                    quote! { Some(#access_value) }
-                };
+                let access_value = quote! { Some(#access_value) };
                 if is_mut {
                     quote! {
                         match #source.get_mut(#id) {

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use ecs::prelude::*;
-use generational_arena::Arena;
+use generational_arena::{Arena, Index};
 
 // Define an Archetype
 #[derive(SplitFields)]
@@ -70,6 +70,7 @@ fn main() {
     // 1. define the struct
     #[derive(Debug)]
     struct MonsterRef<'a> {
+        id: Index,
         position: &'a (f32, f32),
         damage: &'a f32,
     }
@@ -78,6 +79,7 @@ fn main() {
     for monster in query!(
         world.monsters,
         MonsterRef {
+            id,
             position,
             damage: &damage.Get.Some,
         }
