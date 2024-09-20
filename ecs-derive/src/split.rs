@@ -106,7 +106,7 @@ impl Struct {
             proc_macro2::Span::call_site(),
         );
 
-        let generic_family_name = quote! { _ECS_family_F }; // NOTE: mangled name to avoid conflicts
+        let generic_family_name = quote! { __F }; // NOTE: mangled name to avoid conflicts
         let (generics, generics_family, generics_use, generics_family_use) = {
             let params: Vec<_> = struct_generics.params.iter().collect();
             let params_use: Vec<_> = params
@@ -184,7 +184,7 @@ impl Struct {
 
         let struct_ref_name =
             syn::Ident::new(&format!("{struct_name}Ref"), proc_macro2::Span::call_site());
-        let lifetime_ref_name = quote! { '_ECS_ref_a }; // NOTE: mangled name to avoid conflicts
+        let lifetime_ref_name = quote! { '__a }; // NOTE: mangled name to avoid conflicts
         let struct_ref = {
             let fields = struct_fields
                 .iter()
@@ -436,8 +436,6 @@ impl Struct {
                     args = quote! { (#args, #field) };
                 }
 
-                get_many_mut = iter_mut.clone();
-
                 // Construct the lambda function
                 iter_mut.push(quote! {
                     .filter_map(|#args| {
@@ -450,6 +448,39 @@ impl Struct {
                     })
                 });
 
+                // Get many mut
+
+                let ids_expr = quote! { __ids };
+
+                // Collect fields
+                let get_fields = struct_fields.iter().map(|field| {
+                    let name = &field.name;
+                    quote! {
+                        let #name = unsafe { self.#name.get_many_unchecked_mut(#ids_expr.clone()) };
+                    }
+                });
+                get_many_mut.extend(get_fields);
+
+                // Zip fields
+                let mut zip = struct_fields.iter().map(|field| &field.name);
+                if let Some(name) = zip.next() {
+                    get_many_mut.push(quote! { #name });
+                }
+                for name in zip {
+                    get_many_mut.push(quote! { .zip(#name) });
+                }
+
+                // Construct the arguments for the lambda function
+                let mut args = quote! {};
+                let mut args_iter = struct_fields.iter().map(|field| &field.name);
+                if let Some(field) = args_iter.next() {
+                    args = quote! { #field }
+                }
+                for field in args_iter {
+                    args = quote! { (#args, #field) };
+                }
+
+                // Construct the lambda function
                 get_many_mut.push(quote! {
                     .map(|#args| {
                         #struct_ref_mut_name {
@@ -491,7 +522,7 @@ impl Struct {
 
                     pub unsafe fn get_many_unchecked_mut<#lifetime_ref_name>(
                         &#lifetime_ref_name mut self,
-                        ids: impl Iterator<Item = #generic_family_name::Id>,
+                        __ids: impl Iterator<Item = #generic_family_name::Id> + Clone,
                     ) -> impl Iterator<Item = #struct_ref_mut_name<#lifetime_ref_name, #generics_use>> {
                         #(#get_many_mut)*
                     }

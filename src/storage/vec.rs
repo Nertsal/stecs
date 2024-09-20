@@ -10,7 +10,7 @@ unsafe impl<T> Storage<T> for Vec<T> {
         self.push(value);
         id
     }
-    fn ids(&self) -> impl Iterator<Item = Self::Id> {
+    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
         // SAFETY: guaranteed validity and uniqueness
         0..self.len()
     }

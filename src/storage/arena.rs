@@ -15,7 +15,7 @@ impl StorageFamily for ArenaFamily {
 unsafe impl<T> Storage<T> for Arena<T> {
     type Family = ArenaFamily;
     type Id = Index;
-    fn ids(&self) -> impl Iterator<Item = Self::Id> {
+    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
         // SAFETY: `iter()` guarantees validity and uniqueness
         self.iter().map(|(id, _)| id)
     }

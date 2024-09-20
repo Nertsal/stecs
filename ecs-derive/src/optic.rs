@@ -56,7 +56,7 @@ impl Optic {
                 if component.is_identity() {
                     quote! { #storage.#getter(#id) }
                 } else {
-                    let value_name = quote! { _ECS_value };
+                    let value_name = quote! { __value };
                     let access = component.access_impl(is_mut, quote! { #value_name });
                     quote! {
                         match #storage.#getter(#id) {
@@ -76,7 +76,7 @@ impl Optic {
             Optic::Access { storage, component } => {
                 let storage = storage.access(archetype);
 
-                let value_name = quote! { _ECS_value };
+                let value_name = quote! { __value };
                 let access = if component.is_identity() {
                     quote! {}
                 } else {
@@ -128,7 +128,7 @@ impl OpticComponent {
                 optic.access_impl(is_mut, quote! { #entity.#name })
             }
             OpticComponent::Some(optic) => {
-                let value_name = quote! { _ECS_value };
+                let value_name = quote! { __value };
                 let tail = optic.access_impl(is_mut, quote! { #value_name });
                 let tail = if optic.is_prism() {
                     tail

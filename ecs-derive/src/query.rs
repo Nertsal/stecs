@@ -57,7 +57,7 @@ impl QueryOpts {
             let mut query = vec![];
 
             // Get each field
-            let id_expr = quote! { _ECS_field_ID }; // NOTE: mangled to avoid conflicts
+            let id_expr = quote! { __ID }; // NOTE: mangled to avoid conflicts
             let ids_expr = quote! { #storage.ids.ids() };
             query.extend(fields.iter().map(|(name, is_mut, optic)| {
                 let name = &name.mangled;

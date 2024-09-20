@@ -62,7 +62,7 @@ impl ImageOpts {
                         FieldName {
                             original: field.name.clone(),
                             mangled: syn::Ident::new(
-                                &format!("_ECS_field_{}", field.name),
+                                &format!("__{}", field.name),
                                 proc_macro2::Span::call_site(),
                             ),
                         },
@@ -76,10 +76,8 @@ impl ImageOpts {
                 .enumerate()
                 .map(|(i, field)| {
                     // NOTE: mangled name to avoid conflicts
-                    let name = syn::Ident::new(
-                        &format!("_ECS_field_{}", i),
-                        proc_macro2::Span::call_site(),
-                    );
+                    let name =
+                        syn::Ident::new(&format!("__field{}", i), proc_macro2::Span::call_site());
                     (
                         FieldName {
                             original: name.clone(),

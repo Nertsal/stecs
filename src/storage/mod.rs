@@ -1,5 +1,5 @@
-#[cfg(feature = "arena")]
-pub mod arena;
+// #[cfg(feature = "arena")]
+// pub mod arena;
 #[cfg(feature = "hashstorage")]
 pub mod hashstorage;
 pub mod vec;
@@ -19,7 +19,9 @@ pub unsafe trait Storage<T>: Default {
         Default::default()
     }
     /// Returns the unique id's of all active entities in the storage in an arbitrary order.
-    fn ids(&self) -> impl Iterator<Item = Self::Id>;
+    ///
+    /// Note: [`Clone`](trait@std::clone::Clone) is constrained for sharing between multiple fields' accessors in [`get_many_unchecked_mut`](Storage::get_many_unchecked_mut).
+    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone;
     fn insert(&mut self, value: T) -> Self::Id;
     fn get(&self, id: Self::Id) -> Option<&T>;
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;

@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use ecs::prelude::*;
-use generational_arena::{Arena, Index};
 
 // Define an Archetype
 #[derive(SplitFields)]
@@ -21,8 +20,9 @@ struct Corpse {
 }
 
 struct World {
-    monsters: StructOf<Arena<Monster>>,
-    corpses: StructOf<Arena<Corpse>>,
+    // TODO: SlotMap
+    monsters: StructOf<Vec<Monster>>,
+    corpses: StructOf<Vec<Corpse>>,
 }
 
 fn main() {
@@ -70,7 +70,7 @@ fn main() {
     // 1. define the struct
     #[derive(Debug)]
     struct MonsterRef<'a> {
-        id: Index,
+        id: usize,
         position: &'a (f32, f32),
         damage: &'a f32,
     }

@@ -1,6 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use ecs::prelude::*;
-use generational_arena::Arena;
 
 /// Entities with velocity and position component.
 pub const N_POS_PER_VEL: usize = 10;
@@ -27,7 +26,7 @@ struct Unit {
 }
 
 struct World {
-    units: StructOf<Arena<Unit>>,
+    units: StructOf<Vec<Unit>>,
 }
 
 fn build() -> World {
@@ -88,7 +87,7 @@ fn manual_process(world: &mut World) {
         .position
         .iter_mut()
         .zip(world.units.velocity.iter());
-    for ((_, position), (_, velocity)) in query {
+    for (position, velocity) in query {
         if let Some(velocity) = velocity {
             position.x += velocity.dx;
             position.y += velocity.dy;

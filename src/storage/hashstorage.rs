@@ -26,7 +26,7 @@ impl<T> Default for HashStorage<T> {
 unsafe impl<T> Storage<T> for HashStorage<T> {
     type Family = HashFamily;
     type Id = Id;
-    fn ids(&self) -> impl Iterator<Item = Self::Id> {
+    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
         // SAFETY: `keys()` guarantees validity and uniqueness
         self.inner.keys().copied()
     }
