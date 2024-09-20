@@ -166,7 +166,6 @@ enum OpticPart {
 impl Parse for Optic {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let parts = Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(input)?;
-        // TODO: fix error spans when calling input.error()
 
         let parts: Vec<_> = parts.into_iter().collect();
         let empty = [];
@@ -209,7 +208,7 @@ impl Parse for Optic {
                     storage
                 }
                 OpticPart::Some => {
-                    // TODO: maybe not
+                    // TODO: maybe not (optional storages?)
                     return Err(syn::Error::new_spanned(
                         token,
                         "`Some` may only occur after `Get`",
