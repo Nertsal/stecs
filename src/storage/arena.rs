@@ -12,10 +12,11 @@ impl StorageFamily for ArenaFamily {
     type Storage<T> = Arena<T>;
 }
 
-impl<T> Storage<T> for Arena<T> {
+unsafe impl<T> Storage<T> for Arena<T> {
     type Family = ArenaFamily;
     type Id = Index;
     fn ids(&self) -> impl Iterator<Item = Self::Id> {
+        // SAFETY: `iter()` guarantees validity and uniqueness
         self.iter().map(|(id, _)| id)
     }
     fn insert(&mut self, value: T) -> Self::Id {
@@ -37,14 +38,8 @@ impl<T> Storage<T> for Arena<T> {
     where
         T: 'a,
     {
-        // let mut collected = Vec::new(); // TODO: remove allocation
         ids.map(move |i| {
-            // if collected.contains(&i) {
-            //     panic!("repeated index");
-            // }
-            // SAFETY: `collected` checks that no Index's are repeated.
             let r = self.get_mut(i).expect("invalid id: entry absent");
-            // collected.push(i);
             &mut *(r as *mut T)
         })
     }

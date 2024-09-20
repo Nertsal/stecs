@@ -5,13 +5,20 @@ pub mod hashstorage;
 pub mod vec;
 
 /// A single component storage.
-pub trait Storage<T>: Default {
+///
+/// # Safety
+/// The [Storage::ids] method must return an iterator of unique and valid id's.
+/// That is, they must not repeat, and must correspond to valid entities when
+/// used in [Storage::get] or [Storage::get_mut] (unless removed).
+///
+pub unsafe trait Storage<T>: Default {
     type Family: StorageFamily;
     type Id: Copy;
 
     fn phantom_data(&self) -> std::marker::PhantomData<Self::Family> {
         Default::default()
     }
+    /// Returns the unique id's of all active entities in the storage in an arbitrary order.
     fn ids(&self) -> impl Iterator<Item = Self::Id>;
     fn insert(&mut self, value: T) -> Self::Id;
     fn get(&self, id: Self::Id) -> Option<&T>;

@@ -23,10 +23,11 @@ impl<T> Default for HashStorage<T> {
     }
 }
 
-impl<T> Storage<T> for HashStorage<T> {
+unsafe impl<T> Storage<T> for HashStorage<T> {
     type Family = HashFamily;
     type Id = Id;
     fn ids(&self) -> impl Iterator<Item = Self::Id> {
+        // SAFETY: `keys()` guarantees validity and uniqueness
         self.inner.keys().copied()
     }
     fn insert(&mut self, value: T) -> Self::Id {
@@ -55,14 +56,8 @@ impl<T> Storage<T> for HashStorage<T> {
     where
         T: 'a,
     {
-        // let mut collected = Vec::new(); // TODO: remove allocation
         ids.map(move |i| {
-            // if collected.contains(&i) {
-            //     panic!("repeated id");
-            // }
-            // SAFETY: `collected` checks that no id's are repeated.
             let r = self.get_mut(i).expect("invalid id: entry absent");
-            // collected.push(i);
             unsafe { &mut *(r as *mut T) }
         })
     }
