@@ -1,6 +1,6 @@
 use super::types::*;
 
-use crate::optic::Optic;
+use crate::optic::{Optic, OpticComponent, OpticStorage};
 
 use darling::export::syn::{
     self, braced, parenthesized,
@@ -84,10 +84,12 @@ impl Parse for StructFieldOpts {
             if name == "id" {
                 Optic::GetId
             } else {
-                let optic = Box::new(Optic::Get(Box::new(Optic::Id)));
-                Optic::Field {
-                    name: name.clone(),
-                    optic,
+                Optic::Access {
+                    storage: OpticStorage::Field {
+                        name: name.clone(),
+                        optic: Box::new(OpticStorage::Identity),
+                    },
+                    component: OpticComponent::Identity,
                 }
             }
         };

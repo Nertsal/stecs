@@ -1,3 +1,5 @@
+use crate::optic::Optic;
+
 use super::types::StorageGetOpts;
 
 use proc_macro2::TokenStream;
@@ -20,36 +22,37 @@ impl StorageGetOpts {
         let id = &self.id;
         for (name, is_mut, optic) in fields.into_iter().rev() {
             let name = &name.mangled;
-            let component = if is_mut {
-                optic.access_mut(id, quote! { #storage })
+            let access = if is_mut {
+                optic.access_mut(quote! { #id }, quote! { #storage })
             } else {
-                optic.access(id, quote! { #storage })
+                optic.access(quote! { #id }, quote! { #storage })
             };
 
-            get_fields = if optic.is_optional_many() {
-                // Get + Prism -> Option<Option<T>>
-                quote! {
-                    match #component {
-                        None => None,
-                        Some(None) => None,
-                        Some(Some(#name)) => { #get_fields }
-                    }
-                }
-            } else if optic.is_optional() {
-                // Get + Lens -> Option<T>
-                quote! {
-                    match #component {
-                        None => None,
-                        Some(#name) => { #get_fields }
-                    }
-                }
-            } else {
-                // Lens -> Option<T>
-                // just `id`
-                quote! {
+            get_fields = match optic {
+                Optic::GetId => quote! {
                     {
-                        let #name = #component;
+                        let #name = #access;
                         #get_fields
+                    }
+                },
+                Optic::Access { component, .. } => {
+                    if component.is_prism() {
+                        // Option<Option<T>>
+                        quote! {
+                            match #access {
+                                None => None,
+                                Some(None) => None,
+                                Some(Some(#name)) => { #get_fields }
+                            }
+                        }
+                    } else {
+                        // Option<T>
+                        quote! {
+                            match #access {
+                                None => None,
+                                Some(#name) => { #get_fields }
+                            }
+                        }
                     }
                 }
             };

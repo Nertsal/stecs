@@ -57,19 +57,19 @@ impl QueryOpts {
             let mut query = vec![];
 
             // Get each field
-            let id_expr = syn::Expr::Verbatim(quote! { _ECS_field_ID }); // NOTE: mangled to avoid conflicts
-            let ids_expr = syn::Expr::Verbatim(quote! { #storage.ids.ids() });
+            let id_expr = quote! { _ECS_field_ID }; // NOTE: mangled to avoid conflicts
+            let ids_expr = quote! { #storage.ids.ids() };
             query.extend(fields.iter().map(|(name, is_mut, optic)| {
                 let name = &name.mangled;
                 if *is_mut {
-                    let component = optic.access_many_mut(&ids_expr, quote! { #storage });
+                    let component = optic.access_many_mut(ids_expr.clone(), quote! { #storage });
                     quote! { let #name = #component; }
                 } else if matches!(optic, Optic::GetId) {
                     quote! {
                         let #name = #ids_expr;
                     }
                 } else {
-                    let component = optic.access(&id_expr, quote! { #storage });
+                    let component = optic.access(id_expr.clone(), quote! { #storage });
                     quote! {
                         let #name = #ids_expr.map(|#id_expr| {
                             let value = #component;
@@ -107,7 +107,12 @@ impl QueryOpts {
             let filtered = fields
                 .iter()
                 .map(|(name, _, optic)| {
-                    if optic.is_optional_many() {
+                    let optional = if let Optic::Access { component, .. } = optic {
+                        component.is_prism()
+                    } else {
+                        false
+                    };
+                    if optional {
                         let name = &name.mangled;
                         quote! { let #name = #name?; }
                     } else {
