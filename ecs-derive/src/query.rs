@@ -136,6 +136,11 @@ impl QueryOpts {
             }
         }
 
-        quote! { { #(#result)* } }
+        quote! {
+            {
+                #[allow(non_snake_case)]
+                #(#result)*
+            }
+        }
     }
 }

@@ -153,6 +153,8 @@ impl OpticComponent {
     }
 }
 
+struct OpticPartToken(syn::Ident, OpticPart);
+
 enum OpticPart {
     // Id,
     GetId,
@@ -163,45 +165,66 @@ enum OpticPart {
 
 impl Parse for Optic {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let parts = Punctuated::<OpticPart, syn::Token![.]>::parse_separated_nonempty(input)?;
+        let parts = Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(input)?;
         // TODO: fix error spans when calling input.error()
 
         let parts: Vec<_> = parts.into_iter().collect();
         let empty = [];
-        let mut slices = parts.split(|part| matches!(part, OpticPart::Get));
+        let mut slices = parts.split(|part| matches!(part.1, OpticPart::Get));
         let Some(storage_parts) = slices.next() else {
             unreachable!()
         };
         let component_parts = slices.next().unwrap_or(&empty);
+        if slices.next().is_some() {
+            let token = &parts[storage_parts.len() + 1 + component_parts.len()].0;
+            return Err(syn::Error::new_spanned(
+                token,
+                "there may only be at most one `Get`",
+            ));
+        }
 
         // Storage part - before the first Get
         let mut storage = OpticStorage::Identity;
         let mut get_id = false;
-        for part in storage_parts.iter().rev() {
+        for OpticPartToken(token, part) in storage_parts.iter().rev() {
             if get_id {
-                return Err(input.error("`id` must be the only optic part"));
+                return Err(syn::Error::new_spanned(
+                    token,
+                    "`id` must be the only optic part",
+                ));
             }
 
             storage = match part {
                 // OpticPart::Id => {
-                //     return Err(input.error("explicit `_id` is not allowed"));
+                //     return Err(syn::Error::new_spanned(token, "explicit `_id` is not allowed"));
                 // }
                 OpticPart::GetId => {
                     if !matches!(storage, OpticStorage::Identity) {
-                        return Err(input.error("`id` must be the only optic part"));
+                        return Err(syn::Error::new_spanned(
+                            token,
+                            "`id` must be the only optic part",
+                        ));
                     }
                     get_id = true;
                     storage
                 }
                 OpticPart::Some => {
                     // TODO: maybe not
-                    return Err(input.error("`Some` may only occur after `Get`"));
+                    return Err(syn::Error::new_spanned(
+                        token,
+                        "`Some` may only occur after `Get`",
+                    ));
                 }
                 OpticPart::Field(name) => OpticStorage::Field {
                     name: name.clone(),
                     optic: Box::new(storage),
                 },
-                OpticPart::Get => return Err(input.error("there can only be one `Get`")),
+                OpticPart::Get => {
+                    return Err(syn::Error::new_spanned(
+                        token,
+                        "there can only be one `Get`",
+                    ))
+                }
             };
         }
 
@@ -211,20 +234,28 @@ impl Parse for Optic {
 
         // Component part
         let mut component = OpticComponent::Identity;
-        for part in component_parts.iter().rev() {
+        for OpticPartToken(token, part) in component_parts.iter().rev() {
             component = match part {
                 // OpticPart::Id => {
                 //     return Err(input.error("explicit `_id` is not allowed"));
                 // }
                 OpticPart::GetId => {
-                    return Err(input.error("`id` must be the first and only optic part"));
+                    return Err(syn::Error::new_spanned(
+                        token,
+                        "`id` must be the first and only optic part",
+                    ));
                 }
                 OpticPart::Some => OpticComponent::Some(Box::new(component)),
                 OpticPart::Field(name) => OpticComponent::Field {
                     name: name.clone(),
                     optic: Box::new(component),
                 },
-                OpticPart::Get => return Err(input.error("there can only be one `Get`")),
+                OpticPart::Get => {
+                    return Err(syn::Error::new_spanned(
+                        token,
+                        "there can only be one `Get`",
+                    ))
+                }
             };
         }
 
@@ -232,16 +263,16 @@ impl Parse for Optic {
     }
 }
 
-impl Parse for OpticPart {
+impl Parse for OpticPartToken {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let ident: syn::Ident = input.parse()?;
         let part = match ident.to_string().as_str() {
             // "_id" => Self::Id,
-            "id" => Self::GetId,
-            "Some" => Self::Some,
-            "Get" => Self::Get,
-            _ => Self::Field(ident),
+            "id" => OpticPart::GetId,
+            "Some" => OpticPart::Some,
+            "Get" => OpticPart::Get,
+            _ => OpticPart::Field(ident.clone()),
         };
-        Ok(part)
+        Ok(OpticPartToken(ident, part))
     }
 }

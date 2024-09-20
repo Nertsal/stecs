@@ -59,6 +59,7 @@ impl StorageGetOpts {
         }
 
         quote! {{
+            #[allow(non_snake_case)]
             #get_fields
         }}
     }
