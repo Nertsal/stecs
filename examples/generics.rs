@@ -6,17 +6,17 @@ struct World<'a> {
 
 #[derive(SplitFields)]
 #[split(debug, clone)]
-struct Position<T: 'static> {
-    x: T,
-    y: T,
+struct Position<F: 'static> {
+    x: F,
+    y: F,
 }
 
 #[derive(SplitFields)]
 #[split(debug, clone)]
-struct Unit<'b> {
+struct Unit<'a> {
     #[split(nested)]
     position: Position<f32>,
-    name: &'b str,
+    name: &'a str,
 }
 
 fn main() {

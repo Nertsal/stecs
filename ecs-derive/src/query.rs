@@ -47,39 +47,20 @@ impl Parse for QueryOpts {
 
 impl QueryOpts {
     pub fn query(self) -> TokenStream {
-        let fields: Vec<(syn::Ident, bool, Optic)> = match &self.image {
-            ImageOpts::Struct { fields, .. } => fields
-                .iter()
-                .map(|field| (field.name.clone(), field.is_mut, field.optic.clone()))
-                .collect(),
-            ImageOpts::Tuple { fields } => fields
-                .iter()
-                .enumerate()
-                .map(|(i, field)| {
-                    let name =
-                        syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site());
-                    (name, field.is_mut, field.optic.clone())
-                })
-                .collect(),
-        };
+        let (fields, constructor) = self.image.prepare_fields_constructor();
         if fields.is_empty() {
             return quote! { ::std::iter::empty() };
         }
-
-        let field_names: Vec<_> = fields.iter().map(|(name, _, _)| quote! { #name }).collect();
-        let constructor = match self.image {
-            ImageOpts::Struct { ident, .. } => quote! { Some(#ident { #(#field_names),* }) }, // struct
-            ImageOpts::Tuple { .. } => quote! { Some(( #(#field_names),* )) }, // tuple
-        };
 
         let mut result = vec![];
         for storage in &self.struct_ofs {
             let mut query = vec![];
 
             // Get each field
-            let id_expr = syn::Expr::Verbatim(quote! { id });
+            let id_expr = syn::Expr::Verbatim(quote! { _ECS_field_ID }); // NOTE: mangled to avoid conflicts
             let ids_expr = syn::Expr::Verbatim(quote! { #storage.ids.ids() });
             query.extend(fields.iter().map(|(name, is_mut, optic)| {
+                let name = &name.mangled;
                 if *is_mut {
                     let component = optic.access_many_mut(&ids_expr, quote! { #storage });
                     quote! { let #name = #component; }
@@ -90,7 +71,7 @@ impl QueryOpts {
                 } else {
                     let component = optic.access(&id_expr, quote! { #storage });
                     quote! {
-                        let #name = #ids_expr.map(|id| {
+                        let #name = #ids_expr.map(|#id_expr| {
                             let value = #component;
                             value.expect("`id` must be valid")
                         });
@@ -102,9 +83,11 @@ impl QueryOpts {
             query.push(quote! {});
             let mut tail = fields.iter();
             if let Some((name, _, _)) = tail.next() {
+                let name = &name.mangled;
                 query.push(quote! { #name });
             }
             query.extend(tail.map(|(name, _, _)| {
+                let name = &name.mangled;
                 quote! { .zip(#name) }
             }));
 
@@ -112,9 +95,11 @@ impl QueryOpts {
             let mut args = quote! {};
             let mut tail = fields.iter();
             if let Some((name, _, _)) = tail.next() {
+                let name = &name.mangled;
                 args = quote! { #name };
             }
             for (name, _, _) in tail {
+                let name = &name.mangled;
                 args = quote! { (#args, #name) };
             }
 
@@ -123,6 +108,7 @@ impl QueryOpts {
                 .iter()
                 .map(|(name, _, optic)| {
                     if optic.is_optional_many() {
+                        let name = &name.mangled;
                         quote! { let #name = #name?; }
                     } else {
                         quote! {}

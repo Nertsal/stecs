@@ -56,7 +56,6 @@ fn main() {
     }
 
     // Iterate over a whole nested archetype
-    // TODO: rust-analyzer cannot infer the type of `position` storage
     println!("position.x += 1");
     for (_, position) in world.blocks.position.iter_mut() {
         *position.x += 1;

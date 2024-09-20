@@ -19,6 +19,12 @@ pub struct StorageGetOpts {
 }
 
 #[derive(Debug)]
+pub struct FieldName {
+    original: syn::Ident,
+    pub mangled: syn::Ident,
+}
+
+#[derive(Debug)]
 pub enum ImageOpts {
     Struct {
         /// The image to collect the fields into.
@@ -173,6 +179,65 @@ impl Parse for TupleFieldOpts {
     }
 }
 
+impl ImageOpts {
+    /// Prepare fields for code generation and the constructor for the image.
+    pub fn prepare_fields_constructor(&self) -> (Vec<(FieldName, bool, Optic)>, TokenStream) {
+        let fields: Vec<_> = match &self {
+            ImageOpts::Struct { fields, .. } => fields
+                .iter()
+                .map(|field| {
+                    (
+                        // NOTE: mangled name to avoid conflicts
+                        FieldName {
+                            original: field.name.clone(),
+                            mangled: syn::Ident::new(
+                                &format!("_ECS_field_{}", field.name),
+                                proc_macro2::Span::call_site(),
+                            ),
+                        },
+                        field.is_mut,
+                        field.optic.clone(),
+                    )
+                })
+                .collect(),
+            ImageOpts::Tuple { fields } => fields
+                .iter()
+                .enumerate()
+                .map(|(i, field)| {
+                    // NOTE: mangled name to avoid conflicts
+                    let name = syn::Ident::new(
+                        &format!("_ECS_field_{}", i),
+                        proc_macro2::Span::call_site(),
+                    );
+                    (
+                        FieldName {
+                            original: name.clone(),
+                            mangled: name,
+                        },
+                        field.is_mut,
+                        field.optic.clone(),
+                    )
+                })
+                .collect(),
+        };
+
+        let constructor = match self {
+            ImageOpts::Struct { ident, .. } => {
+                let fields = fields
+                    .iter()
+                    .map(|(FieldName { original, mangled }, _, _)| quote! { #original: #mangled });
+                quote! { Some(#ident { #(#fields),* }) }
+            }
+            ImageOpts::Tuple { .. } => {
+                let fields = fields.iter().map(|(name, _, _)| &name.mangled);
+                quote! { Some(( #(#fields),* )) }
+            }
+        };
+
+        (fields, constructor)
+    }
+}
+
 impl StorageGetOpts {
     pub fn get(self) -> TokenStream {
         // match units.pos.get(id) {
@@ -183,36 +248,13 @@ impl StorageGetOpts {
         //     },
         // }
 
-        // field: optic
-        let fields: Vec<(syn::Ident, bool, Optic)> = match &self.image {
-            ImageOpts::Struct { fields, .. } => fields
-                .iter()
-                .map(|field| (field.name.clone(), field.is_mut, field.optic.clone()))
-                .collect(),
-            ImageOpts::Tuple { fields } => fields
-                .iter()
-                .enumerate()
-                .map(|(i, field)| {
-                    let name =
-                        syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site());
-                    (name, field.is_mut, field.optic.clone())
-                })
-                .collect(),
-        };
-
-        let field_names: Vec<_> = fields
-            .iter()
-            .map(|(name, _, _)| quote! { #name, })
-            .collect();
-
-        let mut get_fields = match self.image {
-            ImageOpts::Struct { ident, .. } => quote! { Some(#ident { #(#field_names)* }) }, // struct
-            ImageOpts::Tuple { .. } => quote! { Some(( #(#field_names)* )) }, // tuple
-        };
+        let (fields, constructor) = self.image.prepare_fields_constructor();
+        let mut get_fields = constructor;
 
         let storage = &self.struct_of;
         let id = &self.id;
         for (name, is_mut, optic) in fields.into_iter().rev() {
+            let name = &name.mangled;
             let component = if is_mut {
                 optic.access_mut(id, quote! { #storage })
             } else {

@@ -106,8 +106,8 @@ impl Struct {
             proc_macro2::Span::call_site(),
         );
 
+        let generic_family_name = quote! { _ECS_family_F }; // NOTE: mangled name to avoid conflicts
         let (generics, generics_family, generics_use, generics_family_use) = {
-            // TODO: mangle names
             let params: Vec<_> = struct_generics.params.iter().collect();
             let params_use: Vec<_> = params
                 .iter()
@@ -133,10 +133,13 @@ impl Struct {
                 .position(|param| !matches!(param, syn::GenericParam::Lifetime(_)))
                 .unwrap_or(params.len());
             let mut params_family: Vec<_> = params.iter().map(|param| quote! { #param}).collect();
-            params_family.insert(i, quote! { F: ::ecs::storage::StorageFamily });
+            params_family.insert(
+                i,
+                quote! { #generic_family_name: ::ecs::storage::StorageFamily },
+            );
 
             let mut params_family_use = params_use.clone();
-            params_family_use.insert(i, quote! { F });
+            params_family_use.insert(i, quote! { #generic_family_name });
 
             (
                 quote! { #(#params),* },
@@ -181,6 +184,7 @@ impl Struct {
 
         let struct_ref_name =
             syn::Ident::new(&format!("{struct_name}Ref"), proc_macro2::Span::call_site());
+        let lifetime_ref_name = quote! { '_ECS_ref_a }; // NOTE: mangled name to avoid conflicts
         let struct_ref = {
             let fields = struct_fields
                 .iter()
@@ -188,9 +192,9 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::archetype::StructRef>::Ref<'a> }
+                        quote! { <#ty as ::ecs::archetype::StructRef>::Ref<#lifetime_ref_name> }
                     } else {
-                        quote! { &'a #ty }
+                        quote! { &#lifetime_ref_name #ty }
                     };
                     quote! { pub #name: #ty, }
                 })
@@ -202,7 +206,7 @@ impl Struct {
                 quote! {}
             };
             let struct_ref = quote! {
-                #vis struct #struct_ref_name<'a, #generics_use> {
+                #vis struct #struct_ref_name<#lifetime_ref_name, #generics_use> {
                     #(#fields)*
                 }
             };
@@ -234,9 +238,9 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::archetype::StructRef>::RefMut<'a> }
+                        quote! { <#ty as ::ecs::archetype::StructRef>::RefMut<#lifetime_ref_name> }
                     } else {
-                        quote! { &'a mut #ty }
+                        quote! { &#lifetime_ref_name mut #ty }
                     };
                     quote! { pub #name: #ty, }
                 })
@@ -248,7 +252,7 @@ impl Struct {
                 quote! {}
             };
             let struct_ref = quote! {
-                #vis struct #struct_ref_mut_name<'a, #generics_use> {
+                #vis struct #struct_ref_mut_name<#lifetime_ref_name, #generics_use> {
                     #(#fields)*
                 }
             };
@@ -270,13 +274,13 @@ impl Struct {
         };
 
         let struct_split_fields = quote! {
-            impl<#generics_family> ::ecs::archetype::SplitFields<F> for #struct_name<#generics_use> {
+            impl<#generics_family> ::ecs::archetype::SplitFields<#generic_family_name> for #struct_name<#generics_use> {
                 type StructOf = #struct_of_name<#generics_family_use>;
             }
         };
 
         let struct_ref_impl = {
-            let lifename = quote! { 'a };
+            let lifename = quote! { #lifetime_ref_name };
             let impl_generics: Vec<_> = struct_generics
                 .params
                 .iter()
@@ -309,16 +313,16 @@ impl Struct {
                     let name = &field.name;
                     let ty = &field.ty;
                     let ty = if field.nested {
-                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf }
+                        quote! { <#ty as ::ecs::archetype::SplitFields<#generic_family_name>>::StructOf }
                     } else {
-                        quote! { F::Storage<#ty> }
+                        quote! { #generic_family_name::Storage<#ty> }
                     };
                     quote! {
                         pub #name: #ty,
                     }
                 })
                 .collect::<Vec<_>>();
-            fields.push(quote! { pub ids: F::Storage<()>, });
+            fields.push(quote! { pub ids: #generic_family_name::Storage<()>, });
 
             quote! {
                 #vis struct #struct_of_name<#generics_family> {
@@ -333,13 +337,13 @@ impl Struct {
                 .map(|field| {
                     let ty = &field.ty;
                     if field.nested {
-                        quote! { <#ty as ::ecs::archetype::SplitFields<F>>::StructOf: Clone }
+                        quote! { <#ty as ::ecs::archetype::SplitFields<#generic_family_name>>::StructOf: Clone }
                     } else {
-                        quote! { F::Storage<#ty>: Clone }
+                        quote! { #generic_family_name::Storage<#ty>: Clone }
                     }
                 })
                 .collect::<Vec<_>>();
-            constraints.push(quote! { F::Storage<()>: Clone });
+            constraints.push(quote! { #generic_family_name::Storage<()>: Clone });
 
             let mut clone = struct_fields
                 .iter()
@@ -461,41 +465,41 @@ impl Struct {
                         Self::default()
                     }
 
-                    pub fn phantom_data(&self) -> ::std::marker::PhantomData<F> {
+                    pub fn phantom_data(&self) -> ::std::marker::PhantomData<#generic_family_name> {
                         ::std::default::Default::default()
                     }
 
-                    pub fn get(&self, id: F::Id) -> Option<#struct_ref_name<'_, #generics_use>> {
+                    pub fn get(&self, id: #generic_family_name::Id) -> Option<#struct_ref_name<'_, #generics_use>> {
                         use ::ecs::storage::Storage;
                         #(#get)*
                     }
 
-                    pub fn get_mut(&mut self, id: F::Id) -> Option<#struct_ref_mut_name<'_, #generics_use>> {
+                    pub fn get_mut(&mut self, id: #generic_family_name::Id) -> Option<#struct_ref_mut_name<'_, #generics_use>> {
                         use ::ecs::storage::Storage;
                         #(#get_mut)*
                     }
 
-                    pub fn iter(&self) -> impl Iterator<Item = (F::Id, #struct_ref_name<'_, #generics_use>)> {
+                    pub fn iter(&self) -> impl Iterator<Item = (#generic_family_name::Id, #struct_ref_name<'_, #generics_use>)> {
                         use ::ecs::archetype::Archetype;
                         self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
-                    pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (F::Id, #struct_ref_mut_name<'a, #generics_use>)> + 'a {
+                    pub fn iter_mut<#lifetime_ref_name>(&#lifetime_ref_name mut self) -> impl Iterator<Item = (#generic_family_name::Id, #struct_ref_mut_name<#lifetime_ref_name, #generics_use>)> + #lifetime_ref_name {
                         use ::ecs::archetype::Archetype;
                         #(#iter_mut)*
                     }
 
-                    pub unsafe fn get_many_unchecked_mut<'a>(
-                        &'a mut self,
-                        ids: impl Iterator<Item = F::Id>,
-                    ) -> impl Iterator<Item = #struct_ref_mut_name<'a, #generics_use>> {
+                    pub unsafe fn get_many_unchecked_mut<#lifetime_ref_name>(
+                        &#lifetime_ref_name mut self,
+                        ids: impl Iterator<Item = #generic_family_name::Id>,
+                    ) -> impl Iterator<Item = #struct_ref_mut_name<#lifetime_ref_name, #generics_use>> {
                         #(#get_many_mut)*
                     }
                 }
 
                 impl<#generics_family> IntoIterator for #struct_of_name<#generics_family_use> {
-                    type Item = (F::Id, #struct_name<#generics_use>);
-                    type IntoIter = ::ecs::archetype::ArchetypeIntoIter<F, #struct_of_name<#generics_family_use>>;
+                    type Item = (#generic_family_name::Id, #struct_name<#generics_use>);
+                    type IntoIter = ::ecs::archetype::ArchetypeIntoIter<#generic_family_name, #struct_of_name<#generics_family_use>>;
 
                     fn into_iter(self) -> Self::IntoIter {
                         ::ecs::archetype::ArchetypeIntoIter::new(self)
@@ -537,17 +541,17 @@ impl Struct {
             remove.push(quote! { Some( #struct_name { #(#fields),* } )});
 
             quote! {
-                impl<#generics_family> ::ecs::archetype::Archetype<F> for #struct_of_name<#generics_family_use> {
+                impl<#generics_family> ::ecs::archetype::Archetype<#generic_family_name> for #struct_of_name<#generics_family_use> {
                     type Item = #struct_name<#generics_use>;
-                    fn ids(&self) -> impl Iterator<Item = F::Id> {
+                    fn ids(&self) -> impl Iterator<Item = #generic_family_name::Id> {
                         use ::ecs::storage::Storage;
                         self.ids.ids()
                     }
-                    fn insert(&mut self, value: Self::Item) -> F::Id {
+                    fn insert(&mut self, value: Self::Item) -> #generic_family_name::Id {
                         use ::ecs::storage::Storage;
                         #(#insert)*
                     }
-                    fn remove(&mut self, id: F::Id) -> Option<Self::Item> {
+                    fn remove(&mut self, id: #generic_family_name::Id) -> Option<Self::Item> {
                         use ::ecs::storage::Storage;
                         #(#remove)*
                     }
