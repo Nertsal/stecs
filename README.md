@@ -1,10 +1,6 @@
-# New and Unnamed ECS
+# New and Unnamed ECS\*
 
-This is an experimental ECS library intended to be more compiler-friendly. Archetypes are static, and queries are checked at compile-time.
-
-**Static compiler-checked ECS\***
-
-For an introduction into the idea, see [this blogpost](https://nertsal.github.io/blog/so-i-wrote-my-own-ecs/).
+This is an experimental ECS library intended to be more compiler-friendly. Archetypes are static, and queries are checked at compile-time. For an introduction into the idea, see [this blogpost](https://nertsal.github.io/blog/so-i-wrote-my-own-ecs/).
 
 This library attempts to bridge the gap between
 - compile-time guarantees, that are one of the important points of Rust;
@@ -43,3 +39,14 @@ for (pos, health) in query!(world.players, (&position, &mut health.Get.Some)) {
     *health -= 1;
 }
 ```
+
+# Similar projects
+
+Static ECS:
+- [ecstatic](https://crates.io/crates/ecstatic)
+- [gecs](https://crates.io/crates/gecs)
+
+Similar to some parts of this library:
+- [soa-rs](https://crates.io/crates/soa-rs/)
+- [soa_derive](https://crates.io/crates/soa_derive)
+- [soa-vec](https://crates.io/crates/soa-vec)
