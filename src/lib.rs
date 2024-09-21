@@ -16,6 +16,7 @@
 //! See the [GitHub repository](https://github.com/geng-engine/ecs/) for more examples.
 //!
 //! ```
+//! # use ecs::prelude::*;
 //! #[derive(SplitFields)]
 //! struct Player {
 //!     position: f64,
@@ -27,13 +28,13 @@
 //! }
 //!
 //! let mut world = World { players: Default::default() };
-//! world.insert(Player {
-//!     position: 1,
+//! world.players.insert(Player {
+//!     position: 1.0,
 //!     health: Some(5),
 //! });
 //!
 //! for (pos, health) in query!(world.players, (&position, &mut health.Get.Some)) {
-//!     println!("player at {}; health: {}", position, health);
+//!     println!("player at {}; health: {}", pos, health);
 //!     *health -= 1;
 //! }
 //! ```
@@ -44,6 +45,8 @@
 //! Here, the archetypes are static and defined by the user as regular structs with a derive macro.
 //!
 //! ```
+//! # use ecs::prelude::*;
+//! #
 //! #[derive(SplitFields)]
 //! struct Monster {
 //!     position: (f32, f32),
@@ -56,6 +59,8 @@
 //! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, Vec).
 //!
 //! ```
+//! # use ecs::prelude::*;
+//! #
 //! // Generated struct
 //! struct MonsterStructOf<F: StorageFamily> {
 //!     position: F::Storage<(f32, f32)>,
@@ -75,11 +80,33 @@
 //! The target view can be either a tuple or a struct (user-defined) with regular instantiation syntax, except for value expressions, which use optics.
 //!
 //! ```
+//! # use ecs::prelude::*;
+//! #
+//! # struct World {
+//! #     units: StructOf<Vec<Unit>>,
+//! # }
+//! #
+//! # #[derive(SplitFields)]
+//! # struct Unit {
+//! #     position: f64,
+//! #     velocity: f64,
+//! # }
+//! #
+//! # let mut world = World { units: Default::default() };
+//! #
+//! # struct TargetView<'a> {
+//! #     id: usize,
+//! #     position: &'a mut f64,
+//! #     velocity: &'a f64,
+//! # }
+//! #
+//! # let id = world.units.insert(Unit { position: 0.0, velocity: 0.0 });
+//! #
 //! // Get position of a specific entity
 //! let pos = get!(world.units, id, (&position)).unwrap();
 //!
 //! // Querying into a tuple
-//! for (pos, vel) in query!(world.units, (id, &mut position, &velocity)) { }
+//! for (id, pos, vel) in query!(world.units, (id, &mut position, &velocity)) { }
 //!
 //! // Equivalent query into a struct
 //! for view in query!(world.units, TargetView { id, position: &mut position, velocity }) { }
@@ -154,17 +181,37 @@ pub use ecs_derive::SplitFields;
 /// # Example
 ///
 /// ```
-/// get!(world.units, id, (&pos, &mut damage.Get.Some))
-/// ```
-/// ```
+/// # use ecs::prelude::*;
+/// #  
+/// # struct World {
+/// #     units: StructOf<Vec<Unit>>,
+/// # }
+/// #
+/// # #[derive(SplitFields)]
+/// # struct Unit {
+/// #     position: f64,
+/// #     damage: Option<i64>,
+/// # }
+/// #
+/// # let mut world = World { units: Default::default() };
+/// #
+/// # struct Target<'a> {
+/// #     position: &'a f64,
+/// #     damage: &'a i64,
+/// # }
+/// #
+/// # let id = 0;
+/// #
+/// get!(world.units, id, (&position, &mut damage.Get.Some));
+///
 /// get!(
 ///     world.units,
 ///     id,
 ///     Target {
-///         pos,
+///         position,
 ///         damage: &mut damage.Get.Some
 ///     }
-/// )
+/// );
 /// ```
 ///
 pub use ecs_derive::storage_get as get;
@@ -176,15 +223,34 @@ pub use ecs_derive::storage_get as get;
 /// # Example
 ///
 /// ```
-/// query!(world.units, (&pos, &mut damage.Get.Some))
+/// # use ecs::prelude::*;
+/// #  
+/// # struct World {
+/// #     units: StructOf<Vec<Unit>>,
+/// # }
+/// #
+/// # #[derive(SplitFields)]
+/// # struct Unit {
+/// #     position: f64,
+/// #     damage: Option<i64>,
+/// # }
+/// #
+/// # let mut world = World { units: Default::default() };
+/// #
+/// # struct Target<'a> {
+/// #     position: &'a f64,
+/// #     damage: &'a i64,
+/// # }
+/// #
+/// for (pos, damage) in query!(world.units, (&position, &mut damage.Get.Some)) { }
 ///
-/// query!(
+/// for target in query!(
 ///     world.units,
 ///     Target {
-///         pos,
+///         position,
 ///         damage: &mut damage.Get.Some
 ///     }
-/// )
+/// ) { }
 /// ```
 ///
 /// ## Archetypes
