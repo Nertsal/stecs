@@ -19,7 +19,7 @@
 //! #[derive(SplitFields)]
 //! struct Player {
 //!     position: f64,
-//!     health: i64,
+//!     health: Option<i64>,
 //! }
 //!
 //! struct World {
@@ -29,10 +29,11 @@
 //! let mut world = World { players: Default::default() };
 //! world.insert(Player {
 //!     position: 1,
-//!     health: 5,
+//!     health: Some(5),
 //! });
 //!
-//! for health in query!(world.players, (&mut health)) {
+//! for (pos, health) in query!(world.players, (&position, &mut health.Get.Some)) {
+//!     println!("player at {}; health: {}", position, health);
 //!     *health -= 1;
 //! }
 //! ```
