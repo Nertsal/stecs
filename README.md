@@ -13,11 +13,13 @@ What this library actually is, is a generalized SoA derive
 
 See [crate documentation](todo) for more information.
 
-# Example
+## Example
 
 [See more examples here](examples/).
 
 ```rust
+use ecs::prelude::*;
+
 #[derive(SplitFields)]
 struct Player {
     position: f64,
@@ -28,23 +30,25 @@ struct World {
     players: StructOf<Vec<Player>>,
 }
 
-let mut world = World { players: Default::default() };
-world.insert(Player {
-    position: 1,
-    health: Some(5),
-});
+fn main() {
+    let mut world = World { players: Default::default() };
+    world.insert(Player {
+        position: 1,
+        health: Some(5),
+    });
 
-for (pos, health) in query!(world.players, (&position, &mut health.Get.Some)) {
-    println!("player at {}; health: {}", position, health);
-    *health -= 1;
+    for (pos, health) in query!(world.players, (&position, &mut health.Get.Some)) {
+        println!("player at {}; health: {}", position, health);
+        *health -= 1;
+    }
 }
 ```
 
-# Similar projects
+## Similar projects
 
-Static ECS:
-- [ecstatic](https://crates.io/crates/ecstatic)
-- [gecs](https://crates.io/crates/gecs)
+### [gecs](https://crates.io/crates/gecs)
+
+`gecs` provides similar functionality with static archetypes and checked queries. It has a more conventional to ECS layout, where all archetypes get queried at the same time. 
 
 Similar to some parts of this library:
 - [soa-rs](https://crates.io/crates/soa-rs/)
