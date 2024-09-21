@@ -5,6 +5,7 @@ use crate::{
 
 pub use generational_arena::{Arena, Index};
 
+/// Family of Arena<T> storages.
 pub struct ArenaFamily;
 
 impl StorageFamily for ArenaFamily {

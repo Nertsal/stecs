@@ -63,6 +63,7 @@ unsafe impl<T> Storage<T> for HashStorage<T> {
     }
 }
 
+/// Family of `HashStorage<T>` storages.
 pub struct HashFamily;
 
 impl StorageFamily for HashFamily {
