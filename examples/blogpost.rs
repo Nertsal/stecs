@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use ecs::prelude::*;
+use ecs::{
+    prelude::*,
+    storage::arena::{Arena, ArenaId},
+};
 
 // Define an Archetype
 #[derive(SplitFields)]
@@ -20,9 +23,8 @@ struct Corpse {
 }
 
 struct World {
-    // TODO: SlotMap
-    monsters: StructOf<Vec<Monster>>,
-    corpses: StructOf<Vec<Corpse>>,
+    monsters: StructOf<Arena<Monster>>,
+    corpses: StructOf<Arena<Corpse>>,
 }
 
 fn main() {
@@ -70,7 +72,7 @@ fn main() {
     // 1. define the struct
     #[derive(Debug)]
     struct MonsterRef<'a> {
-        id: usize,
+        id: ArenaId,
         position: &'a (f32, f32),
         damage: &'a f32,
     }

@@ -5,9 +5,11 @@ use crate::{
 
 use std::collections::HashMap;
 
+/// Identifier type for a [`HashStorage`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(u64);
 
+/// A storage that keeps values inside a [`HashMap`].
 #[derive(Clone)]
 pub struct HashStorage<T> {
     next_id: Id,
@@ -63,7 +65,7 @@ unsafe impl<T> Storage<T> for HashStorage<T> {
     }
 }
 
-/// Family of `HashStorage<T>` storages.
+/// Family of [`HashStorage<T>`] storages.
 pub struct HashFamily;
 
 impl StorageFamily for HashFamily {

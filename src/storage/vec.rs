@@ -37,7 +37,7 @@ unsafe impl<T> Storage<T> for Vec<T> {
     }
 }
 
-/// Family of `Vec<T>` storages.
+/// Family of [`Vec<T>`] storages.
 pub struct VecFamily;
 
 impl StorageFamily for VecFamily {

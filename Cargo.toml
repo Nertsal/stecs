@@ -8,14 +8,14 @@ edition = "2021"
 [features]
 default = ["arena"]
 hashstorage = []
-arena = ["dep:generational-arena"]
+arena = ["dep:slotmap"]
 
 [workspace]
 members = ["ecs-derive"]
 
 [dependencies]
 ecs-derive = { path = "ecs-derive" }
-generational-arena = { version = "0.2.9", optional = true }
+slotmap = { version = "1.0.7", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }

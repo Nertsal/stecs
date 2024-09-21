@@ -1,6 +1,6 @@
-// /// Arena storage.
-// #[cfg(feature = "arena")]
-// pub mod arena;
+/// Arena storage.
+#[cfg(feature = "arena")]
+pub mod arena;
 /// Hash storage.
 #[cfg(feature = "hashstorage")]
 pub mod hashstorage;
