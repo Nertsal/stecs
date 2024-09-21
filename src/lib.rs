@@ -7,9 +7,13 @@
 //! - performance benefits of [SoA](https://en.wikipedia.org/wiki/AoS_and_SoA) (Struct of Array);
 //! - and ease of use of ECS libraries
 //!
-//! *Note: technically this library likely does not qualify as a proper ECS.
+//! **\*Note**: technically this library likely does not qualify as a proper ECS.
 //! What this library actually is, is a generalized SoA derive
 //! (For an example of a non-general one, see [soa_derive](https://crates.io/crates/soa_derive) or [soa-rs](https://crates.io/crates/soa-rs/)).
+//!
+//! This library contains and also generates snippets of unsafe code to support mutable querying.
+//! It could be avoided by using lending iterators, but they are much less convenient to use in for-loops.
+//! However, if possible, the goal is for the library to contain no unsafe code.
 //!
 //! # Example
 //!

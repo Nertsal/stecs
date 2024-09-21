@@ -7,9 +7,13 @@ This library attempts to bridge the gap between
 - performance benefits of [SoA](https://en.wikipedia.org/wiki/AoS_and_SoA) (Struct of Array);
 - and ease of use of ECS libraries
 
-*Note: technically this library likely does not qualify as a proper ECS.
+**\*Note**: technically this library likely does not qualify as a proper ECS.
 What this library actually is, is a generalized SoA derive
 (For an example of a non-general one, see [soa_derive](https://crates.io/crates/soa_derive) or [soa-rs](https://crates.io/crates/soa-rs/)).
+
+This library contains and also generates snippets of unsafe code to support mutable querying.
+It could be avoided by using lending iterators, but they are much less convenient to use in for-loops.
+However, if possible, the goal is for the library to contain no unsafe code.
 
 See [crate documentation](todo) for more information.
 
@@ -50,7 +54,7 @@ fn main() {
 
 `gecs` provides similar functionality with static archetypes and checked queries. It has a more conventional to ECS layout, where all archetypes get queried at the same time. 
 
-Similar to some parts of this library:
+### Similar to some parts of this library:
 - [soa-rs](https://crates.io/crates/soa-rs/)
 - [soa_derive](https://crates.io/crates/soa_derive)
 - [soa-vec](https://crates.io/crates/soa-vec)
