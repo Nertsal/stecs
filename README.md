@@ -15,7 +15,7 @@ This library contains and also generates snippets of unsafe code to support muta
 It could be avoided by using lending iterators, but they are much less convenient to use in for-loops.
 However, if possible, the goal is for the library to contain no unsafe code.
 
-See [crate documentation](todo) for more information. And see [Horns of Combustion](https://github.com/Nertsal/horns-of-combustion) for an example of a game using this library.
+See [crate documentation](https://docs.rs/stecs/) for more information. And see [Horns of Combustion](https://github.com/Nertsal/horns-of-combustion) for an example of a game using this library.
 
 ## Example
 
