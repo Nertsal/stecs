@@ -52,8 +52,8 @@ impl Parse for ImageOpts {
                 let fields;
                 parenthesized!(fields in input);
 
-                let fields: Punctuated<TupleFieldOpts, syn::Token![,]> =
-                    fields.parse_terminated(TupleFieldOpts::parse)?;
+                let fields =
+                    Punctuated::<TupleFieldOpts, syn::Token![,]>::parse_terminated(&fields)?;
                 ImageOpts::Tuple { fields }
             }
         };
