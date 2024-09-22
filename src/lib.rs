@@ -17,7 +17,7 @@
 //!
 //! # Example
 //!
-//! See the [GitHub repository](https://github.com/geng-engine/ecs/) for more examples.
+//! See the [GitHub repository](https://github.com/Nertsal/stecs/) for more examples.
 //!
 //! ```
 //! # use stecs::prelude::*;
