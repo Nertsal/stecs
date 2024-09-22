@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use ecs::prelude::*;
+use stecs::prelude::*;
 
 #[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {

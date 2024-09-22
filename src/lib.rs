@@ -1,4 +1,4 @@
-//! # Static compiler-checked ECS*.
+//! # stecs - static compiler-checked ECS*.
 //!
 //! For an introduction into the idea, see [this blogpost](https://nertsal.github.io/blog/so-i-wrote-my-own-ecs/).
 //!
@@ -20,7 +20,7 @@
 //! See the [GitHub repository](https://github.com/geng-engine/ecs/) for more examples.
 //!
 //! ```
-//! # use ecs::prelude::*;
+//! # use stecs::prelude::*;
 //! #[derive(SplitFields)]
 //! struct Player {
 //!     position: f64,
@@ -49,7 +49,7 @@
 //! Here, the archetypes are static and defined by the user as regular structs with a derive macro.
 //!
 //! ```
-//! # use ecs::prelude::*;
+//! # use stecs::prelude::*;
 //! #
 //! #[derive(SplitFields)]
 //! struct Monster {
@@ -63,7 +63,7 @@
 //! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, Vec).
 //!
 //! ```
-//! # use ecs::prelude::*;
+//! # use stecs::prelude::*;
 //! #
 //! // Generated struct
 //! struct MonsterStructOf<F: StorageFamily> {
@@ -84,7 +84,7 @@
 //! The target view can be either a tuple or a struct (user-defined) with regular instantiation syntax, except for value expressions, which use optics.
 //!
 //! ```
-//! # use ecs::prelude::*;
+//! # use stecs::prelude::*;
 //! #
 //! # struct World {
 //! #     units: StructOf<Vec<Unit>>,
@@ -159,7 +159,7 @@
 /// # Example
 ///
 /// ```
-/// # use ecs::prelude::*;
+/// # use stecs::prelude::*;
 /// #[derive(SplitFields)]
 /// #[split(debug, clone)]
 /// struct Position {
@@ -176,7 +176,7 @@
 /// }
 /// ```
 ///
-pub use ecs_derive::SplitFields;
+pub use stecs_derive::SplitFields;
 
 /// Get components of a specific entity.
 ///
@@ -185,7 +185,7 @@ pub use ecs_derive::SplitFields;
 /// # Example
 ///
 /// ```
-/// # use ecs::prelude::*;
+/// # use stecs::prelude::*;
 /// #  
 /// # struct World {
 /// #     units: StructOf<Vec<Unit>>,
@@ -218,7 +218,7 @@ pub use ecs_derive::SplitFields;
 /// );
 /// ```
 ///
-pub use ecs_derive::storage_get as get;
+pub use stecs_derive::storage_get as get;
 
 /// Query components from archetypes.
 ///
@@ -227,7 +227,7 @@ pub use ecs_derive::storage_get as get;
 /// # Example
 ///
 /// ```
-/// # use ecs::prelude::*;
+/// # use stecs::prelude::*;
 /// #  
 /// # struct World {
 /// #     units: StructOf<Vec<Unit>>,
@@ -269,14 +269,14 @@ pub use ecs_derive::storage_get as get;
 /// In either case, the syntax is the same as normal struct/tuple construction,
 /// except for value expressions which use the [optics](crate#optics).
 ///
-pub use ecs_derive::storage_query as query;
+pub use stecs_derive::storage_query as query;
 
 /// The traits for describing archetypes and split storages.
 pub mod archetype;
 /// The [`Storage`](storage::Storage) trait and basic implementors.
 pub mod storage;
 
-/// use `ecs::prelude::*;` to import all necessary traits, types, and macros.
+/// use `stecs::prelude::*;` to import all necessary traits, types, and macros.
 pub mod prelude {
     pub use crate::{
         archetype::{Archetype, SplitFields, StructOf, StructOfAble as _},

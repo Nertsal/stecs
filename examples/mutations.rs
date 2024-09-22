@@ -1,4 +1,4 @@
-use ecs::prelude::*;
+use stecs::prelude::*;
 
 struct World {
     blocks: StructOf<Vec<Block>>,

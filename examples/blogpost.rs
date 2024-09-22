@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use ecs::{
+use stecs::{
     prelude::*,
     storage::arena::{Arena, ArenaId},
 };

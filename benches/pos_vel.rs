@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use ecs::prelude::*;
+use stecs::prelude::*;
 
 /// Entities with velocity and position component.
 pub const N_POS_PER_VEL: usize = 10;

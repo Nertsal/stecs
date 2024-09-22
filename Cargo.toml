@@ -1,5 +1,5 @@
 [package]
-name = "ecs"
+name = "stecs"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,15 +7,15 @@ edition = "2021"
 
 [features]
 default = ["arena", "query_mut"]
-query_mut = ["ecs-derive/query_mut"]
+query_mut = ["stecs-derive/query_mut"]
 hashstorage = []
 arena = ["dep:slotmap"]
 
 [workspace]
-members = ["ecs-derive"]
+members = ["stecs-derive"]
 
 [dependencies]
-ecs-derive = { path = "ecs-derive" }
+stecs-derive = { path = "stecs-derive" }
 slotmap = { version = "1.0.7", optional = true }
 
 [dev-dependencies]
