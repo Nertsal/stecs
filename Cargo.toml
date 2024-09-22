@@ -2,6 +2,13 @@
 name = "stecs"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["Nertsal <nestralnertsal@gmail.com>"]
+description = "Experimental static compiler-checked ECS library"
+documentation = "https://docs.rs/stecs"
+readme = "README.md"
+homepage = "https://github.com/Nertsal/stecs"
+repository = "https://github.com/Nertsal/stecs"
 
 [features]
 default = ["arena", "query_mut"]
@@ -14,7 +21,7 @@ members = ["stecs-derive"]
 
 [dependencies]
 stecs-derive = { path = "stecs-derive", version = "0.1.0" }
-slotmap = { version = "1", optional = true }
+slotmap = { version = "1.0", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
