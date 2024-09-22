@@ -1,4 +1,4 @@
-# stecs - static compiler-checked ECS\*.
+# stecs - static compiler-checked ECS\*
 
 This is an experimental ECS library intended to be more compiler-friendly. Archetypes are static, and queries are checked at compile-time. For an introduction into the idea, see [this blogpost](https://nertsal.github.io/blog/so-i-wrote-my-own-ecs/).
 
