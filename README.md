@@ -1,5 +1,9 @@
 # stecs - static compiler-checked ECS\*
 
+[![crates.io](https://img.shields.io/crates/v/stecs.svg)](https://crates.io/crates/stecs/)
+[![docs.rs](https://img.shields.io/docsrs/stecs)](https://docs.rs/stecs/latest/)
+[![GitHub License](https://img.shields.io/github/license/Nertsal/stecs)](https://choosealicense.com/licenses/mit/)
+
 This is an experimental ECS library intended to be more compiler-friendly. Archetypes are static, and queries are checked at compile-time. For an introduction into the idea, see [this blogpost](https://nertsal.github.io/blog/so-i-wrote-my-own-ecs/).
 
 This library attempts to bridge the gap between
