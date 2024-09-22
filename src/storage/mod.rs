@@ -41,6 +41,7 @@ pub unsafe trait Storage<T>: Default {
     /// # Safety
     /// The given `ids` must not repeat and must be valid and present id's in the storage.
     ///
+    #[cfg(feature = "query_mut")]
     unsafe fn get_many_unchecked_mut<'a>(
         &'a mut self,
         ids: impl Iterator<Item = Self::Id>,

@@ -23,6 +23,7 @@ unsafe impl<T> Storage<T> for Vec<T> {
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         (id < self.len()).then(|| self.swap_remove(id))
     }
+    #[cfg(feature = "query_mut")]
     unsafe fn get_many_unchecked_mut<'a>(
         &'a mut self,
         ids: impl Iterator<Item = Self::Id>,

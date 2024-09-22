@@ -8,6 +8,10 @@ edition = "2021"
 [lib]
 proc-macro = true
 
+[features]
+default = []
+query_mut = []
+
 [dependencies]
 darling = "0.14.4"
 proc-macro2 = "1.0.56"

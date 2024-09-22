@@ -19,6 +19,8 @@ pub struct QueryOpts {
 
 impl Parse for QueryOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let _span_start = input.span();
+
         let struct_ofs = if input.peek(syn::token::Bracket) {
             // Parse an array of struct_of's
             // [a, b, c]
@@ -41,6 +43,24 @@ impl Parse for QueryOpts {
 
         let image: ImageOpts = input.parse()?;
 
+        #[cfg(not(feature = "query_mut"))]
+        {
+            // Mutability in queries turned off
+            let is_mut = match &image {
+                ImageOpts::Struct { fields, .. } => fields.iter().any(|field| field.is_mut),
+                ImageOpts::Tuple { fields } => fields.iter().any(|field| field.is_mut),
+            };
+            if is_mut {
+                let span = _span_start
+                    .join(input.span())
+                    .expect("spans are from the same input stream");
+                return Err(syn::Error::new(
+                    span,
+                    "enable the `query_mut` feature flag to allow mutable queries",
+                ));
+            }
+        }
+
         Ok(Self { struct_ofs, image })
     }
 }
@@ -62,8 +82,17 @@ impl QueryOpts {
             query.extend(fields.iter().map(|(name, is_mut, optic)| {
                 let name = &name.mangled;
                 if *is_mut {
-                    let component = optic.access_many_mut(ids_expr.clone(), quote! { #storage });
-                    quote! { let #name = #component; }
+                    #[cfg(feature = "query_mut")]
+                    {
+                        let component =
+                            optic.access_many_mut(ids_expr.clone(), quote! { #storage });
+                        quote! { let #name = #component; }
+                    }
+
+                    #[cfg(not(feature = "query_mut"))]
+                    panic!(
+                        "The `query_mut` feature is disabled, so mutable queries are not supported"
+                    );
                 } else if matches!(optic, Optic::GetId) {
                     quote! {
                         let #name = #ids_expr;

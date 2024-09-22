@@ -35,6 +35,7 @@ unsafe impl<K: slotmap::Key, T> Storage<T> for SlotMap<K, T> {
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         self.remove(id)
     }
+    #[cfg(feature = "query_mut")]
     unsafe fn get_many_unchecked_mut<'a>(
         &'a mut self,
         ids: impl Iterator<Item = Self::Id>,

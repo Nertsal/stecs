@@ -70,6 +70,7 @@ impl Optic {
     }
 
     /// Access many entities (identified by `ids`) mutably.
+    #[cfg(feature = "query_mut")]
     pub fn access_many_mut(&self, ids: TokenStream, archetype: TokenStream) -> TokenStream {
         match self {
             Optic::GetId => ids,
