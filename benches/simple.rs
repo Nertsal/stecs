@@ -1,11 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use stecs::prelude::*;
 
-/// Entities with velocity and position component.
-pub const N_POS_PER_VEL: usize = 10;
-
-/// Entities with position component only.
-pub const N_POS: usize = 10000;
+/// Entities with position and velocity.
+pub const N_POS_VEL: usize = 10000;
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 struct Position {
@@ -22,7 +19,7 @@ struct Velocity {
 #[derive(Debug, Clone, PartialEq, PartialOrd, SplitFields)]
 struct Unit {
     position: Position,
-    velocity: Option<Velocity>,
+    velocity: Velocity,
 }
 
 struct World {
@@ -34,11 +31,10 @@ fn build() -> World {
         units: Default::default(),
     };
 
-    for i in 0..N_POS {
-        let velocity = (i % N_POS_PER_VEL == 0).then_some(Velocity { dx: 0.0, dy: 0.0 });
+    for _ in 0..N_POS_VEL {
         world.units.insert(Unit {
             position: Position { x: 0.0, y: 0.0 },
-            velocity,
+            velocity: Velocity { dx: 0.0, dy: 0.0 },
         });
     }
 
@@ -46,7 +42,7 @@ fn build() -> World {
 }
 
 fn process(world: &mut World) {
-    for (position, velocity) in query!(world.units, (&mut position, &velocity.Get.Some)) {
+    for (position, velocity) in query!(world.units, (&mut position, &velocity)) {
         position.x += velocity.dx;
         position.y += velocity.dy;
     }
@@ -64,14 +60,7 @@ fn semi_manual_process(world: &mut World) {
                 unsafe { &mut *(r as *mut Position) }
             })
         };
-        let field_1 = world
-            .units
-            .ids
-            .ids()
-            .map(|id| match world.units.velocity.get(id) {
-                None => None,
-                Some(value) => value.as_ref(),
-            });
+        let field_1 = world.units.ids.ids().map(|id| world.units.velocity.get(id));
         field_0.zip(field_1).filter_map(|(field_0, field_1)| {
             let field_1 = field_1?;
             Some((field_0, field_1))
@@ -91,10 +80,8 @@ fn manual_process(world: &mut World) {
         .iter_mut()
         .zip(world.units.velocity.iter());
     for (position, velocity) in query {
-        if let Some(velocity) = velocity {
-            position.x += velocity.dx;
-            position.y += velocity.dy;
-        }
+        position.x += velocity.dx;
+        position.y += velocity.dy;
     }
 }
 
@@ -120,10 +107,10 @@ fn bench_semi_manual(c: &mut Criterion) {
 }
 
 criterion_group!(
-    pos_vel,
+    simple,
     bench_build,
     bench_process,
     bench_semi_manual,
     bench_manual
 );
-criterion_main!(pos_vel);
+criterion_main!(simple);
