@@ -27,7 +27,7 @@ struct Corpse {
 }
 
 #[derive(SplitFields, Debug)]
-#[split(clone)] // implement to_owned method for the `ParticleRef` generated struct to clone the data into a `Particle`
+#[split(clone)] // implement clone method for the `ParticleRef` generated struct to clone the data into a `Particle`
 struct Particle {
     pos: (f32, f32),
     time: f32,
