@@ -11,10 +11,11 @@ homepage = "https://github.com/Nertsal/stecs"
 repository = "https://github.com/Nertsal/stecs"
 
 [features]
-default = ["arena", "query_mut"]
+default = ["arena", "query_mut", "dynamic"]
 query_mut = ["stecs-derive/query_mut"]
 hashstorage = []
 arena = ["dep:slotmap"]
+dynamic = ["dep:anymap3"]
 
 [workspace]
 members = ["stecs-derive"]
@@ -22,6 +23,7 @@ members = ["stecs-derive"]
 [dependencies]
 stecs-derive = { path = "stecs-derive", version = "0.1.0" }
 slotmap = { version = "1.0", optional = true }
+anymap3 = { version = "1.0", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

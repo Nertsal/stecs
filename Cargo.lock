@@ -24,6 +24,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8365de52b16c035ff4fcafe0092ba9390540e3e352870ac09933bebcaa2c8c56"
 
 [[package]]
+name = "anymap3"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9316150bf847270bd54e404c3fb1c5d3c6af118b3f0c3b42097da5ceafbe7c27"
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -464,6 +470,7 @@ dependencies = [
 name = "stecs"
 version = "0.1.1"
 dependencies = [
+ "anymap3",
  "criterion",
  "slotmap",
  "stecs-derive",

@@ -99,11 +99,19 @@ impl QueryOpts {
                     }
                 } else {
                     let component = optic.access(id_expr.clone(), quote! { #storage });
-                    quote! {
-                        let #name = #ids_expr.map(|#id_expr| {
-                            let value = #component;
-                            value.expect("`id` must be valid")
-                        });
+                    if matches!(optic, Optic::Dynamic { .. }) {
+                        quote! {
+                            let #name = #ids_expr.map(|#id_expr| {
+                                #component
+                            });
+                        }
+                    } else {
+                        quote! {
+                            let #name = #ids_expr.map(|#id_expr| {
+                                let value = #component;
+                                value.expect("`id` must be valid")
+                            });
+                        }
                     }
                 }
             }));
@@ -136,10 +144,10 @@ impl QueryOpts {
             let filtered = fields
                 .iter()
                 .map(|(name, _, optic)| {
-                    let optional = if let Optic::Access { component, .. } = optic {
-                        component.is_prism()
-                    } else {
-                        false
+                    let optional = match optic {
+                        Optic::Dynamic { component, .. } => component.is_prism(),
+                        Optic::GetId => false,
+                        Optic::Access { component, .. } => component.is_prism(),
                     };
                     if optional {
                         let name = &name.mangled;

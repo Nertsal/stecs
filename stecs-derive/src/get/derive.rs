@@ -29,7 +29,7 @@ impl StorageGetOpts {
             };
 
             get_fields = match optic {
-                Optic::GetId => quote! {
+                Optic::Dynamic { .. } | Optic::GetId => quote! {
                     {
                         let #name = #access;
                         #get_fields
