@@ -16,13 +16,9 @@ impl<K: slotmap::Key, T> Default for Arena<T, K> {
     }
 }
 
-unsafe impl<K: slotmap::Key, T> Storage<T> for Arena<T, K> {
+impl<K: slotmap::Key, T> Storage<T> for Arena<T, K> {
     type Family = ArenaFamily<K>;
     type Id = K;
-    // fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
-    //     // SAFETY: `keys()` guarantees validity and uniqueness
-    //     self.keys()
-    // }
     fn insert(&mut self, id: Self::Id, value: T) {
         self.0.insert(id, value);
     }
@@ -75,9 +71,12 @@ impl<K: slotmap::Key> Default for ArenaIdGenerator<K> {
     }
 }
 
-impl<K: slotmap::Key> IdGenerator for ArenaIdGenerator<K> {
+unsafe impl<K: slotmap::Key> IdGenerator for ArenaIdGenerator<K> {
     type Id = K;
     fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
+        // SAFETY: `keys()` guarantees uniqueness and partially validity;
+        // proper validity is dependent on the derived implementation of Archetype::insert
+        // passing the generated id's to the storages below.
         self.alive.keys()
     }
     fn spawn(&mut self) -> Self::Id {

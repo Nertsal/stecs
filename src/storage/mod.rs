@@ -8,14 +8,7 @@ pub mod hashstorage;
 // pub mod vec;
 
 /// A storage of components.
-///
-/// # Safety
-/// The [Storage::ids] method must return an iterator of unique and valid id's.
-/// That is, they must not repeat, and must correspond to valid entities when
-/// used in [Storage::get] or [Storage::get_mut] (unless removed).
-///
-// TODO: check safety
-pub unsafe trait Storage<T>: Default {
+pub trait Storage<T>: Default {
     /// Type of the abstract family corresponding to the storages of this type.
     type Family: StorageFamily;
     /// Type of the identifier used for components/entities.
@@ -62,15 +55,19 @@ pub trait StorageFamily {
 }
 
 /// A generator of identifiers to use with [Storage]s.
-// TODO: unsafe?
-pub trait IdGenerator {
+///
+/// # Safety
+/// The [`IdGenerator::ids`] method must return an iterator of unique and valid id's.
+/// That is, they must not repeat, and must correspond to valid entities when
+/// used in [`Storage::get`] or [`Storage::get_mut`] (unless removed).
+///
+pub unsafe trait IdGenerator {
     /// The identifier type being generated.
     type Id: Copy;
 
     /// Returns the unique id's of all active entities in the storage in an arbitrary order.
     ///
     /// **Note**: [`Clone`](trait@std::clone::Clone) is constrained for sharing between multiple fields' accessors when implementing [`get_many_unchecked_mut`](Storage::get_many_unchecked_mut).
-    // TODO: check Clone again
     fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone;
     /// Generate a new available id.
     fn spawn(&mut self) -> Self::Id;

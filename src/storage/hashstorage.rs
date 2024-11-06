@@ -19,11 +19,10 @@ impl<T> Default for HashStorage<T> {
     }
 }
 
-unsafe impl<T> Storage<T> for HashStorage<T> {
+impl<T> Storage<T> for HashStorage<T> {
     type Family = HashFamily;
     type Id = Id;
     // fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
-    //     // SAFETY: `keys()` guarantees validity and uniqueness
     //     self.inner.keys().copied()
     // }
     fn insert(&mut self, id: Self::Id, value: T) {
@@ -80,9 +79,12 @@ impl Default for HashIdGenerator {
     }
 }
 
-impl IdGenerator for HashIdGenerator {
+unsafe impl IdGenerator for HashIdGenerator {
     type Id = Id;
     fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
+        // SAFETY: `iter()` guarantees uniqueness and partially validity;
+        // proper validity is dependent on the derived implementation of Archetype::insert
+        // passing the generated id's to the storages below.
         self.alive.iter().copied()
     }
     fn spawn(&mut self) -> Self::Id {
