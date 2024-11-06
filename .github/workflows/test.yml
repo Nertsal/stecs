@@ -14,13 +14,15 @@ jobs:
         with:
           toolchain: stable
           profile: minimal
+      - name: Install testing utility
+        run: cargo install cargo-all-features
       - name: Test
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --all-features --all-targets
+          command: test-all-features
+          args: --all-targets
       - name: Test documentation
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --all-features --doc
+          command: test-all-features
+          args: --doc
