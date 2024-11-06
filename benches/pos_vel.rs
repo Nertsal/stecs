@@ -58,6 +58,7 @@ fn semi_manual_process(world: &mut World) {
             world.units.ids.ids().map(|i| {
                 let r = world
                     .units
+                    .inner
                     .position
                     .get_mut(i)
                     .expect("invalid id: entry absent");
@@ -68,7 +69,7 @@ fn semi_manual_process(world: &mut World) {
             .units
             .ids
             .ids()
-            .map(|id| match world.units.velocity.get(id) {
+            .map(|id| match world.units.inner.velocity.get(id) {
                 None => None,
                 Some(value) => value.as_ref(),
             });
@@ -87,10 +88,12 @@ fn manual_process(world: &mut World) {
     // NOTE: we can safely zip iter's only because the implementation is known
     let query = world
         .units
+        .inner
         .position
         .iter_mut()
-        .zip(world.units.velocity.iter());
-    for (position, velocity) in query {
+        .zip(world.units.inner.velocity.iter());
+    for ((key_pos, position), (key_vel, velocity)) in query {
+        debug_assert_eq!(key_pos, key_vel);
         if let Some(velocity) = velocity {
             position.x += velocity.dx;
             position.y += velocity.dy;

@@ -7,6 +7,7 @@ pub use slotmap::{self, DefaultKey as ArenaId};
 use slotmap::{SecondaryMap, SlotMap};
 
 /// Type wrapper for a [`SlotMap`] storage with a default key.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Arena<T, K: slotmap::Key = ArenaId>(SecondaryMap<K, T>);
 
 impl<K: slotmap::Key, T> Default for Arena<T, K> {
@@ -33,6 +34,18 @@ unsafe impl<K: slotmap::Key, T> Storage<T> for Arena<T, K> {
     }
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         self.0.remove(id)
+    }
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (Self::Id, &'a T)>
+    where
+        T: 'a,
+    {
+        self.0.iter()
+    }
+    fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (Self::Id, &'a mut T)>
+    where
+        T: 'a,
+    {
+        self.0.iter_mut()
     }
     #[cfg(feature = "query_mut")]
     unsafe fn get_many_unchecked_mut<'a>(

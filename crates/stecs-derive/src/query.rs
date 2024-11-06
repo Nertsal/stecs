@@ -179,6 +179,7 @@ impl QueryOpts {
 
         quote! {
             {
+                use ::stecs::storage::{IdGenerator, Storage};
                 #[allow(non_snake_case)]
                 #(#result)*
             }

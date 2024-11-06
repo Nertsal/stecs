@@ -87,7 +87,7 @@ impl Optic {
             }
             Optic::GetId => id,
             Optic::Access { storage, component } => {
-                let storage = storage.access(archetype);
+                let storage = storage.access(quote! { #archetype.inner });
 
                 let getter = if is_mut {
                     quote! { get_mut }
@@ -131,7 +131,7 @@ impl Optic {
             }
             Optic::GetId => ids,
             Optic::Access { storage, component } => {
-                let storage = storage.access(archetype);
+                let storage = storage.access(quote! { #archetype.inner });
 
                 let value_name = quote! { __value };
                 let access = if component.is_identity() {

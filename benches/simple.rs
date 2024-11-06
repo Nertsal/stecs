@@ -54,13 +54,18 @@ fn semi_manual_process(world: &mut World) {
             world.units.ids.ids().map(|i| {
                 let r = world
                     .units
+                    .inner
                     .position
                     .get_mut(i)
                     .expect("invalid id: entry absent");
                 unsafe { &mut *(r as *mut Position) }
             })
         };
-        let field_1 = world.units.ids.ids().map(|id| world.units.velocity.get(id));
+        let field_1 = world
+            .units
+            .ids
+            .ids()
+            .map(|id| world.units.inner.velocity.get(id));
         field_0.zip(field_1).filter_map(|(field_0, field_1)| {
             let field_1 = field_1?;
             Some((field_0, field_1))
@@ -76,10 +81,12 @@ fn manual_process(world: &mut World) {
     // NOTE: we can safely zip iter's only because the implementation is known
     let query = world
         .units
+        .inner
         .position
         .iter_mut()
-        .zip(world.units.velocity.iter());
-    for (position, velocity) in query {
+        .zip(world.units.inner.velocity.iter());
+    for ((key_pos, position), (key_vel, velocity)) in query {
+        debug_assert_eq!(key_pos, key_vel);
         position.x += velocity.dx;
         position.y += velocity.dy;
     }

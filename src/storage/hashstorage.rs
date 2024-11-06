@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 pub struct Id(u64);
 
 /// A storage that keeps values inside a [`HashMap`].
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct HashStorage<T>(HashMap<Id, T>);
 
 impl<T> Default for HashStorage<T> {
@@ -37,6 +37,18 @@ unsafe impl<T> Storage<T> for HashStorage<T> {
     }
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         self.0.remove(&id)
+    }
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (Self::Id, &'a T)>
+    where
+        T: 'a,
+    {
+        self.0.iter().map(|(&k, v)| (k, v))
+    }
+    fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (Self::Id, &'a mut T)>
+    where
+        T: 'a,
+    {
+        self.0.iter_mut().map(|(&k, v)| (k, v))
     }
     #[cfg(feature = "query_mut")]
     unsafe fn get_many_unchecked_mut<'a>(

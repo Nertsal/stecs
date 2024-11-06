@@ -21,6 +21,7 @@ pub unsafe trait Storage<T>: Default {
     /// Type of the identifier used for components/entities.
     type Id: Copy;
 
+    // TODO: remove?
     fn phantom_data(&self) -> std::marker::PhantomData<Self::Family> {
         Default::default()
     }
@@ -32,6 +33,14 @@ pub unsafe trait Storage<T>: Default {
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;
     /// Remove a component at the given id.
     fn remove(&mut self, id: Self::Id) -> Option<T>;
+    /// Iterate over all components immutably.
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (Self::Id, &'a T)>
+    where
+        T: 'a;
+    /// Iterate over all components mutably.
+    fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (Self::Id, &'a mut T)>
+    where
+        T: 'a;
 
     /// Get mutable references to the components corresponding to the id's in the iterator.
     ///

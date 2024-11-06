@@ -46,7 +46,7 @@ fn main() {
 
     // Iterate over a storage
     println!("height += 1");
-    for x in world.blocks.height.iter_mut() {
+    for (_, x) in world.blocks.inner.height.iter_mut() {
         *x += 1;
     }
 
@@ -57,7 +57,7 @@ fn main() {
 
     // Iterate over a whole nested archetype
     println!("position.x += 1");
-    for (_, position) in world.blocks.position.iter_mut() {
+    for position in query!(world.blocks, (&mut position)) {
         *position.x += 1;
     }
 

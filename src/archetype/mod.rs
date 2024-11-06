@@ -5,14 +5,17 @@ pub use self::iter::*;
 use crate::storage::StorageFamily;
 
 /// A collection of components bundled together, or an entity type, or a generic SoA (struct of arrays).
+/// Wraps over [`Split`] handling entity spawn.
 pub trait Archetype<F: StorageFamily> {
     /// The type of the entity stored as components.
     type Item;
+    /// The inner collection of split components
+    type Split: Split<F>;
     /// Return id's of all active entities.
     fn ids(&self) -> impl Iterator<Item = F::Id>;
     /// Insert a new entity, returning its id.
     fn insert(&mut self, value: Self::Item) -> F::Id;
-    /// Remove an entity with a given id.
+    /// Remove an entity with the given id.
     fn remove(&mut self, id: F::Id) -> Option<Self::Item>;
     /// Insert a dynamic component into a specific entity.
     #[cfg(feature = "dynamic")]
@@ -24,6 +27,16 @@ pub trait Archetype<F: StorageFamily> {
     fn remove_dyn<T: anymap3::CloneAny + Clone>(&mut self, id: F::Id) -> Option<T>
     where
         F::Id: 'static + Clone + std::hash::Hash + Eq;
+}
+
+/// A collection of components bundled together sharing id's from an outside [`Archetype`].
+pub trait Split<F: StorageFamily> {
+    /// The type of the entity stored as components.
+    type Item;
+    /// Insert a new entity.
+    fn insert(&mut self, id: F::Id, value: Self::Item);
+    /// Remove an entity with the given id.
+    fn remove(&mut self, id: F::Id) -> Option<Self::Item>;
 }
 
 /// A type synonym for a specific implementor of [Archetype] for convenient usage in type definitions.
@@ -42,8 +55,10 @@ pub trait StructOfAble {
 
 /// Implemented for structs (static archetypes) to split into components.
 pub trait SplitFields<F: StorageFamily>: Sized {
-    /// The [Archetype] for the structure.
-    type StructOf: Archetype<F>;
+    /// The [`Archetype`] for the structure.
+    type StructOf: Archetype<F, Split = Self::Split>;
+    /// The [`Split`] of the structure.
+    type Split: Split<F>;
 }
 
 /// The trait describing what types act as a borrowed and mutably borrowed versions.

@@ -92,7 +92,7 @@ fn main() {
         // Declare a view struct to query into
         #[derive(Debug)]
         struct UnitRef<'a> {
-            id: usize,
+            id: ArenaId,
             pos: &'a (f32, f32),
             damage: &'a f32,
         }
