@@ -26,9 +26,34 @@ slotmap = { version = "1.0", optional = true }
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 
+[package.metadata."docs.rs"]
+all-features = true
+
 [[bench]]
 name = "pos_vel"
 harness = false
+required-features = ["query_mut"]
 [[bench]]
 name = "simple"
 harness = false
+required-features = ["query_mut"]
+
+[[example]]
+name = "full"
+doc-scrape-examples = true
+required-features = ["query_mut"]
+
+[[example]]
+name = "blogpost"
+doc-scrape-examples = true
+required-features = ["arena", "query_mut"]
+
+[[example]]
+name = "mutations"
+doc-scrape-examples = true
+required-features = ["query_mut"]
+
+[[example]]
+name = "generics"
+doc-scrape-examples = true
+required-features = []

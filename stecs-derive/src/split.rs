@@ -423,93 +423,6 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                 })
             });
 
-            let mut iter_mut = Vec::new();
-            let mut get_many_mut = Vec::new();
-            if fields.is_empty() {
-                // No fields
-                iter_mut.push(quote! { ::std::iter::empty() });
-                get_many_mut.push(quote! { ::std::iter::empty() });
-            } else {
-                // Collect fields
-                iter_mut = struct_fields
-                    .iter()
-                    .map(|field| {
-                        let name = &field.name;
-                        quote! {
-                            let #name = unsafe { self.#name.get_many_unchecked_mut(self.ids.ids()) };
-                        }
-                    })
-                    .collect();
-
-                // Zip fields
-                let zip = std::iter::once(quote! { self.ids.ids() }).chain(
-                    struct_fields.iter().map(|field| {
-                        let name = &field.name;
-                        quote! { .zip(#name) }
-                    }),
-                );
-                iter_mut.extend(zip);
-
-                // Construct the arguments for the lambda function
-                let mut args = quote! { id };
-                for field in struct_fields.iter().map(|field| &field.name) {
-                    args = quote! { (#args, #field) };
-                }
-
-                // Construct the lambda function
-                iter_mut.push(quote! {
-                    .filter_map(|#args| {
-                        Some((
-                            id,
-                            #struct_ref_mut_name {
-                                #(#fields)*
-                            }
-                        ))
-                    })
-                });
-
-                // Get many mut
-
-                let ids_expr = quote! { __ids };
-
-                // Collect fields
-                let get_fields = struct_fields.iter().map(|field| {
-                    let name = &field.name;
-                    quote! {
-                        let #name = unsafe { self.#name.get_many_unchecked_mut(#ids_expr.clone()) };
-                    }
-                });
-                get_many_mut.extend(get_fields);
-
-                // Zip fields
-                let mut zip = struct_fields.iter().map(|field| &field.name);
-                if let Some(name) = zip.next() {
-                    get_many_mut.push(quote! { #name });
-                }
-                for name in zip {
-                    get_many_mut.push(quote! { .zip(#name) });
-                }
-
-                // Construct the arguments for the lambda function
-                let mut args = quote! {};
-                let mut args_iter = struct_fields.iter().map(|field| &field.name);
-                if let Some(field) = args_iter.next() {
-                    args = quote! { #field }
-                }
-                for field in args_iter {
-                    args = quote! { (#args, #field) };
-                }
-
-                // Construct the lambda function
-                get_many_mut.push(quote! {
-                    .map(|#args| {
-                        #struct_ref_mut_name {
-                            #(#fields)*
-                        }
-                    })
-                });
-            }
-
             let get_doc = format!(
                 r#"Get an immutable reference to all components of this archetype, i.e. a [`{struct_ref_name}`]"#
             );
@@ -519,18 +432,127 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             let iter_doc = format!(
                 r#"Iterate immutably over all components of this archetype, i.e. over [`{struct_ref_name}`]"#
             );
-            let iter_mut_doc = format!(
-                r#"Iterate mutably over all components of this archetype, i.e. over [`{struct_ref_mut_name}`]"#
-            );
 
-            let get_many_unchecked_mut_doc = format!(
-                r#"**NOTE**: This function is used internally by the proc macros, you should not call it manually.
+            #[cfg(not(feature = "query_mut"))]
+            let query_mut = quote! {};
+            #[cfg(feature = "query_mut")]
+            let query_mut = {
+                let mut iter_mut = Vec::new();
+                let mut get_many_mut = Vec::new();
+                if fields.is_empty() {
+                    // No fields
+                    iter_mut.push(quote! { ::std::iter::empty() });
+                    get_many_mut.push(quote! { ::std::iter::empty() });
+                } else {
+                    // Collect fields
+                    iter_mut = struct_fields
+                    .iter()
+                    .map(|field| {
+                        let name = &field.name;
+                        quote! {
+                            let #name = unsafe { self.#name.get_many_unchecked_mut(self.ids.ids()) };
+                        }
+                    })
+                    .collect();
+
+                    // Zip fields
+                    let zip = std::iter::once(quote! { self.ids.ids() }).chain(
+                        struct_fields.iter().map(|field| {
+                            let name = &field.name;
+                            quote! { .zip(#name) }
+                        }),
+                    );
+                    iter_mut.extend(zip);
+
+                    // Construct the arguments for the lambda function
+                    let mut args = quote! { id };
+                    for field in struct_fields.iter().map(|field| &field.name) {
+                        args = quote! { (#args, #field) };
+                    }
+
+                    // Construct the lambda function
+                    iter_mut.push(quote! {
+                        .filter_map(|#args| {
+                            Some((
+                                id,
+                                #struct_ref_mut_name {
+                                    #(#fields)*
+                                }
+                            ))
+                        })
+                    });
+
+                    // Get many mut
+
+                    let ids_expr = quote! { __ids };
+
+                    // Collect fields
+                    let get_fields = struct_fields.iter().map(|field| {
+                    let name = &field.name;
+                    quote! {
+                        let #name = unsafe { self.#name.get_many_unchecked_mut(#ids_expr.clone()) };
+                    }
+                });
+                    get_many_mut.extend(get_fields);
+
+                    // Zip fields
+                    let mut zip = struct_fields.iter().map(|field| &field.name);
+                    if let Some(name) = zip.next() {
+                        get_many_mut.push(quote! { #name });
+                    }
+                    for name in zip {
+                        get_many_mut.push(quote! { .zip(#name) });
+                    }
+
+                    // Construct the arguments for the lambda function
+                    let mut args = quote! {};
+                    let mut args_iter = struct_fields.iter().map(|field| &field.name);
+                    if let Some(field) = args_iter.next() {
+                        args = quote! { #field }
+                    }
+                    for field in args_iter {
+                        args = quote! { (#args, #field) };
+                    }
+
+                    // Construct the lambda function
+                    get_many_mut.push(quote! {
+                        .map(|#args| {
+                            #struct_ref_mut_name {
+                                #(#fields)*
+                            }
+                        })
+                    });
+                }
+
+                let iter_mut_doc = format!(
+                    r#"Iterate mutably over all components of this archetype, i.e. over [`{struct_ref_mut_name}`]"#
+                );
+
+                let get_many_unchecked_mut_doc = format!(
+                    r#"**NOTE**: This function is used internally by the proc macros, you should not call it manually.
 
 Get mutable references to all id's in the iterator, returning an iterator of [`{struct_ref_mut_name}`].
 
 # Safety
 The given `ids` must not repeat and must be valid and present id's in the storage."#
-            );
+                );
+
+                quote! {
+                    #[doc = #iter_mut_doc]
+                    pub fn iter_mut<#lifetime_ref_name>(&#lifetime_ref_name mut self) -> impl Iterator<Item = (#generic_family_name::Id, #struct_ref_mut_name<#lifetime_ref_name, #generics_use>)> + #lifetime_ref_name {
+                        use ::stecs::archetype::Archetype;
+                        #(#iter_mut)*
+                    }
+
+                    #[doc = #get_many_unchecked_mut_doc]
+                    pub unsafe fn get_many_unchecked_mut<#lifetime_ref_name>(
+                        &#lifetime_ref_name mut self,
+                        __ids: impl Iterator<Item = #generic_family_name::Id> + Clone,
+                    ) -> impl Iterator<Item = #struct_ref_mut_name<#lifetime_ref_name, #generics_use>> {
+                        #(#get_many_mut)*
+                    }
+                }
+            };
 
             quote! {
                 impl<#generics_family> #struct_of_name<#generics_family_use> {
@@ -560,19 +582,7 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                         self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
-                    #[doc = #iter_mut_doc]
-                    pub fn iter_mut<#lifetime_ref_name>(&#lifetime_ref_name mut self) -> impl Iterator<Item = (#generic_family_name::Id, #struct_ref_mut_name<#lifetime_ref_name, #generics_use>)> + #lifetime_ref_name {
-                        use ::stecs::archetype::Archetype;
-                        #(#iter_mut)*
-                    }
-
-                    #[doc = #get_many_unchecked_mut_doc]
-                    pub unsafe fn get_many_unchecked_mut<#lifetime_ref_name>(
-                        &#lifetime_ref_name mut self,
-                        __ids: impl Iterator<Item = #generic_family_name::Id> + Clone,
-                    ) -> impl Iterator<Item = #struct_ref_mut_name<#lifetime_ref_name, #generics_use>> {
-                        #(#get_many_mut)*
-                    }
+                    #query_mut
                 }
 
                 impl<#generics_family> IntoIterator for #struct_of_name<#generics_family_use> {

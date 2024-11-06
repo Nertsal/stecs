@@ -48,9 +48,8 @@ impl Parse for QueryOpts {
                 ImageOpts::Tuple { fields } => fields.iter().any(|field| field.is_mut),
             };
             if is_mut {
-                let span = _span_start
-                    .join(input.span())
-                    .expect("spans are from the same input stream");
+                // NOTE: sometimes in doc tests the `join` fails
+                let span = _span_start.join(input.span()).unwrap_or(input.span());
                 return Err(syn::Error::new(
                     span,
                     "enable the `query_mut` feature flag to allow mutable queries",
