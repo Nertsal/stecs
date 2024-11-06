@@ -28,7 +28,7 @@
 //! }
 //!
 //! struct World {
-//!     players: StructOf<Vec<Player>>,
+//!     players: StructOf<Arena<Player>>,
 //! }
 //!
 //! let mut world = World { players: Default::default() };
@@ -60,10 +60,10 @@
 //! }
 //! ```
 //!
-//! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, Vec).
+//! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, Arena).
 //!
 //! ```
-//! # use stecs::prelude::*;
+//! # use stecs::storage::StorageFamily;
 //! #
 //! // Generated struct
 //! struct MonsterStructOf<F: StorageFamily> {
@@ -87,7 +87,7 @@
 //! # use stecs::prelude::*;
 //! #
 //! # struct World {
-//! #     units: StructOf<Vec<Unit>>,
+//! #     units: StructOf<Arena<Unit>>,
 //! # }
 //! #
 //! # #[derive(SplitFields)]
@@ -99,7 +99,7 @@
 //! # let mut world = World { units: Default::default() };
 //! #
 //! # struct TargetView<'a> {
-//! #     id: usize,
+//! #     id: ArenaId,
 //! #     position: &'a mut f64,
 //! #     velocity: &'a f64,
 //! # }
@@ -188,7 +188,7 @@ pub use stecs_derive::SplitFields;
 /// # use stecs::prelude::*;
 /// #  
 /// # struct World {
-/// #     units: StructOf<Vec<Unit>>,
+/// #     units: StructOf<Arena<Unit>>,
 /// # }
 /// #
 /// # #[derive(SplitFields)]
@@ -204,7 +204,7 @@ pub use stecs_derive::SplitFields;
 /// #     damage: &'a i64,
 /// # }
 /// #
-/// # let id = 0;
+/// # let id = ArenaId::from(slotmap::KeyData::from_ffi(1));
 /// #
 /// get!(world.units, id, (&position, &mut damage.Get.Some));
 ///
@@ -230,7 +230,7 @@ pub use stecs_derive::storage_get as get;
 /// # use stecs::prelude::*;
 /// #  
 /// # struct World {
-/// #     units: StructOf<Vec<Unit>>,
+/// #     units: StructOf<Arena<Unit>>,
 /// # }
 /// #
 /// # #[derive(SplitFields)]
