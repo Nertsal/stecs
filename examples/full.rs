@@ -3,9 +3,9 @@ use stecs::prelude::*;
 
 #[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {
-    units: StructOf<Vec<Unit>>,         // UnitStructOf<VecFamily>,
-    corpses: StructOf<Vec<Corpse>>,     // CorpseStructOf<VecFamily>,
-    particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
+    units: StructOf<Arena<Unit>>,         // UnitStructOf<VecFamily>,
+    corpses: StructOf<Arena<Corpse>>,     // CorpseStructOf<VecFamily>,
+    particles: StructOf<Arena<Particle>>, // ParticleStructOf<VecFamily>,
 }
 
 #[derive(SplitFields, Debug)]

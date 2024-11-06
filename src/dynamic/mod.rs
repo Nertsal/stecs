@@ -2,6 +2,20 @@ use std::{collections::HashMap, hash::Hash, marker::PhantomData};
 
 use anymap3::{CloneAny, Map};
 
+// /// A trait for a dynamic component: data that can be attached to entities arbitrarily at runtime.
+// pub trait DynamicComponent {
+//     type Storage: DynamicStorage;
+// }
+
+// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// pub enum DynamicStorageType {
+//     SparseSet,
+// }
+
+// TODO: rewrite anymap3
+// TODO: optional clone
+// TODO: different component storage types
+
 #[derive(Clone)]
 pub struct DynamicStorage<Id> {
     inner: Map<dyn CloneAny>,

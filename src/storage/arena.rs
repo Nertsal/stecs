@@ -1,39 +1,38 @@
 use crate::{
     archetype::{SplitFields, StructOfAble},
-    storage::{Storage, StorageFamily},
+    storage::{IdGenerator, Storage, StorageFamily},
 };
 
-pub use slotmap::{self, DefaultKey as ArenaId, SlotMap};
+pub use slotmap::{self, DefaultKey as ArenaId};
+use slotmap::{SecondaryMap, SlotMap};
 
-/// Type alias for a [`SlotMap`] storage with a default key.
-pub type Arena<T> = SlotMap<ArenaId, T>;
+/// Type wrapper for a [`SlotMap`] storage with a default key.
+pub struct Arena<T, K: slotmap::Key = ArenaId>(SecondaryMap<K, T>);
 
-/// Family of [`SlotMap<K, V>`] storages.
-pub struct SlotMapFamily<K: slotmap::Key>(std::marker::PhantomData<K>);
-
-impl<K: slotmap::Key> StorageFamily for SlotMapFamily<K> {
-    type Id = K;
-    type Storage<T> = SlotMap<K, T>;
+impl<K: slotmap::Key, T> Default for Arena<T, K> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
 }
 
-unsafe impl<K: slotmap::Key, T> Storage<T> for SlotMap<K, T> {
-    type Family = SlotMapFamily<K>;
+unsafe impl<K: slotmap::Key, T> Storage<T> for Arena<T, K> {
+    type Family = ArenaFamily<K>;
     type Id = K;
-    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
-        // SAFETY: `keys()` guarantees validity and uniqueness
-        self.keys()
-    }
-    fn insert(&mut self, value: T) -> Self::Id {
-        self.insert(value)
+    // fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
+    //     // SAFETY: `keys()` guarantees validity and uniqueness
+    //     self.keys()
+    // }
+    fn insert(&mut self, id: Self::Id, value: T) {
+        self.0.insert(id, value);
     }
     fn get(&self, id: Self::Id) -> Option<&T> {
-        self.get(id)
+        self.0.get(id)
     }
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T> {
-        self.get_mut(id)
+        self.0.get_mut(id)
     }
     fn remove(&mut self, id: Self::Id) -> Option<T> {
-        self.remove(id)
+        self.0.remove(id)
     }
     #[cfg(feature = "query_mut")]
     unsafe fn get_many_unchecked_mut<'a>(
@@ -50,7 +49,42 @@ unsafe impl<K: slotmap::Key, T> Storage<T> for SlotMap<K, T> {
     }
 }
 
-impl<K: slotmap::Key, T: SplitFields<SlotMapFamily<K>>> StructOfAble for SlotMap<K, T> {
+#[derive(Clone)]
+pub struct ArenaIdGenerator<K: slotmap::Key> {
+    alive: SlotMap<K, ()>,
+}
+
+impl<K: slotmap::Key> Default for ArenaIdGenerator<K> {
+    fn default() -> Self {
+        Self {
+            alive: SlotMap::with_key(),
+        }
+    }
+}
+
+impl<K: slotmap::Key> IdGenerator for ArenaIdGenerator<K> {
+    type Id = K;
+    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
+        self.alive.keys()
+    }
+    fn spawn(&mut self) -> Self::Id {
+        self.alive.insert(())
+    }
+    fn remove(&mut self, id: Self::Id) -> bool {
+        self.alive.remove(id).is_some()
+    }
+}
+
+/// Family of [`SlotMap<K, V>`] storages.
+pub struct ArenaFamily<K: slotmap::Key>(std::marker::PhantomData<K>);
+
+impl<K: slotmap::Key> StorageFamily for ArenaFamily<K> {
+    type Id = K;
+    type Storage<T> = Arena<T, K>;
+    type Generator = ArenaIdGenerator<K>;
+}
+
+impl<K: slotmap::Key, T: SplitFields<ArenaFamily<K>>> StructOfAble for Arena<T, K> {
     type Struct = T;
-    type Family = SlotMapFamily<K>;
+    type Family = ArenaFamily<K>;
 }

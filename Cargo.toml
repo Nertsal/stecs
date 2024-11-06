@@ -34,16 +34,16 @@ all-features = true
 [[bench]]
 name = "pos_vel"
 harness = false
-required-features = ["query_mut"]
+required-features = ["arena", "query_mut"]
 [[bench]]
 name = "simple"
 harness = false
-required-features = ["query_mut"]
+required-features = ["arena", "query_mut"]
 
 [[example]]
 name = "full"
 doc-scrape-examples = true
-required-features = ["query_mut"]
+required-features = ["arena", "query_mut"]
 
 [[example]]
 name = "blogpost"
@@ -53,14 +53,14 @@ required-features = ["arena", "query_mut"]
 [[example]]
 name = "mutations"
 doc-scrape-examples = true
-required-features = ["query_mut"]
+required-features = ["arena", "query_mut"]
 
 [[example]]
 name = "generics"
 doc-scrape-examples = true
-required-features = []
+required-features = ["arena"]
 
 [[example]]
 name = "dynamic"
 doc-scrape-examples = true
-required-features = ["query_mut", "dynamic"]
+required-features = ["arena", "query_mut", "dynamic"]

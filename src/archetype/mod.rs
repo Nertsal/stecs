@@ -5,7 +5,7 @@ pub use self::iter::*;
 use crate::storage::StorageFamily;
 
 /// A collection of components bundled together, or an entity type, or a generic SoA (struct of arrays).
-pub trait Archetype<F: StorageFamily>: Default {
+pub trait Archetype<F: StorageFamily> {
     /// The type of the entity stored as components.
     type Item;
     /// Return id's of all active entities.

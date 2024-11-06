@@ -5,7 +5,7 @@ use super::*;
 unsafe impl<T> Storage<T> for Vec<T> {
     type Family = VecFamily;
     type Id = usize;
-    fn insert(&mut self, value: T) -> Self::Id {
+    fn insert(&mut self, id: Self::Id, value: T) -> Self::Id {
         let id = self.len();
         self.push(value);
         id
@@ -37,6 +37,8 @@ unsafe impl<T> Storage<T> for Vec<T> {
         })
     }
 }
+
+pub struct VecIdGenerator {}
 
 /// Family of [`Vec<T>`] storages.
 pub struct VecFamily;

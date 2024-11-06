@@ -23,7 +23,7 @@ struct Unit {
 }
 
 struct World {
-    units: StructOf<Vec<Unit>>,
+    units: StructOf<Arena<Unit>>,
 }
 
 fn build() -> World {

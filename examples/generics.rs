@@ -1,7 +1,7 @@
 use stecs::prelude::*;
 
 struct World<'a> {
-    units: StructOf<Vec<Unit<'a>>>,
+    units: StructOf<Arena<Unit<'a>>>,
 }
 
 #[derive(SplitFields)]

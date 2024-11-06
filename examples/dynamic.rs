@@ -1,10 +1,9 @@
 use stecs::prelude::*;
 
 struct World {
-    units: StructOf<Vec<Unit>>,
+    units: StructOf<Arena<Unit>>,
 }
 
-// #[derive(DynamicComponent)]
 #[derive(Debug, Clone)]
 struct Poisoned {
     time: f32,

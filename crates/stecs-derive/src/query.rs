@@ -77,7 +77,7 @@ impl QueryOpts {
 
             // Get each field
             let id_expr = quote! { __ID }; // NOTE: mangled to avoid conflicts
-            let ids_expr = quote! { #storage.ids.ids() };
+            let ids_expr = quote! { ::stecs::storage::IdGenerator::ids(&#storage.ids) };
             query.extend(fields.iter().map(|(name, is_mut, optic)| {
                 let name = &name.mangled;
                 if *is_mut {

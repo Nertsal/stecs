@@ -278,8 +278,14 @@ pub mod dynamic;
 /// The [`Storage`](storage::Storage) trait and basic implementors.
 pub mod storage;
 
+#[cfg(feature = "arena")]
+pub use slotmap;
+
 /// use `stecs::prelude::*;` to import all necessary traits, types, and macros.
 pub mod prelude {
+    #[cfg(feature = "arena")]
+    pub use crate::storage::arena::Arena;
+
     pub use crate::{
         archetype::{Archetype, SplitFields, StructOf, StructOfAble as _},
         get, query,

@@ -4,8 +4,8 @@ pub mod arena;
 /// Hash storage.
 #[cfg(feature = "hashstorage")]
 pub mod hashstorage;
-/// Vec storage.
-pub mod vec;
+// /// Vec storage.
+// pub mod vec;
 
 /// A storage of components.
 ///
@@ -14,6 +14,7 @@ pub mod vec;
 /// That is, they must not repeat, and must correspond to valid entities when
 /// used in [Storage::get] or [Storage::get_mut] (unless removed).
 ///
+// TODO: check safety
 pub unsafe trait Storage<T>: Default {
     /// Type of the abstract family corresponding to the storages of this type.
     type Family: StorageFamily;
@@ -23,20 +24,16 @@ pub unsafe trait Storage<T>: Default {
     fn phantom_data(&self) -> std::marker::PhantomData<Self::Family> {
         Default::default()
     }
-    /// Returns the unique id's of all active entities in the storage in an arbitrary order.
-    ///
-    /// **Note**: [`Clone`](trait@std::clone::Clone) is constrained for sharing between multiple fields' accessors when implementing [`get_many_unchecked_mut`](Storage::get_many_unchecked_mut).
-    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone;
-    /// Insert a new component, returning its id.
-    fn insert(&mut self, value: T) -> Self::Id;
-    /// Get an immutable reference to a component a given id.
+    /// Insert a new component to at the specified id.
+    fn insert(&mut self, id: Self::Id, value: T);
+    /// Get an immutable reference to a component at the given id.
     fn get(&self, id: Self::Id) -> Option<&T>;
-    /// Get a mutable reference to a component a given id.
+    /// Get a mutable reference to a component at the given id.
     fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;
-    /// Remove an component with a given id.
+    /// Remove a component at the given id.
     fn remove(&mut self, id: Self::Id) -> Option<T>;
 
-    /// Get mutable references to all id's in the iterator.
+    /// Get mutable references to the components corresponding to the id's in the iterator.
     ///
     /// # Safety
     /// The given `ids` must not repeat and must be valid and present id's in the storage.
@@ -56,4 +53,22 @@ pub trait StorageFamily {
     type Id: Copy;
     /// Type of a specific storage.
     type Storage<T>: Storage<T, Family = Self, Id = Self::Id>;
+    type Generator: IdGenerator<Id = Self::Id>;
+}
+
+/// A generator of identifiers to use with [Storage]s.
+// TODO: unsafe?
+pub trait IdGenerator {
+    /// The identifier type being generated.
+    type Id: Copy;
+
+    /// Returns the unique id's of all active entities in the storage in an arbitrary order.
+    ///
+    /// **Note**: [`Clone`](trait@std::clone::Clone) is constrained for sharing between multiple fields' accessors when implementing [`get_many_unchecked_mut`](Storage::get_many_unchecked_mut).
+    // TODO: check Clone again
+    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone;
+    /// Generate a new available id.
+    fn spawn(&mut self) -> Self::Id;
+    /// Remove/free an id, returns `true` if the id was present.
+    fn remove(&mut self, id: Self::Id) -> bool;
 }

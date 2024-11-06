@@ -336,7 +336,7 @@ This struct is a version of `{struct_name}` that holds mutable references to its
                     }
                 })
                 .collect::<Vec<_>>();
-            fields.push(quote! { pub ids: #generic_family_name::Storage<()>, });
+            fields.push(quote! { pub ids: #generic_family_name::Generator, });
             #[cfg(feature = "dynamic")]
             fields.push(quote! {
                 pub r#dyn: ::stecs::dynamic::DynamicStorage<#generic_family_name::Id>,
@@ -369,7 +369,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     }
                 })
                 .collect::<Vec<_>>();
-            constraints.push(quote! { #generic_family_name::Storage<()>: Clone });
+            constraints.push(quote! { #generic_family_name::Generator: Clone });
 
             let mut clone = struct_fields
                 .iter()
@@ -548,7 +548,7 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                 quote! {
                     #[doc = #iter_mut_doc]
                     pub fn iter_mut<#lifetime_ref_name>(&#lifetime_ref_name mut self) -> impl Iterator<Item = (#generic_family_name::Id, #struct_ref_mut_name<#lifetime_ref_name, #generics_use>)> + #lifetime_ref_name {
-                        use ::stecs::archetype::Archetype;
+                        use ::stecs::{archetype::Archetype, storage::IdGenerator};
                         #(#iter_mut)*
                     }
 
@@ -564,7 +564,10 @@ The given `ids` must not repeat and must be valid and present id's in the storag
 
             quote! {
                 impl<#generics_family> #struct_of_name<#generics_family_use> {
-                    pub fn new(&self) -> Self {
+                    pub fn new(&self) -> Self
+                    where
+                        #struct_of_name<#generics_family_use>: ::std::default::Default
+                    {
                         Self::default()
                     }
 
@@ -586,8 +589,8 @@ The given `ids` must not repeat and must be valid and present id's in the storag
 
                     #[doc = #iter_doc]
                     pub fn iter(&self) -> impl Iterator<Item = (#generic_family_name::Id, #struct_ref_name<'_, #generics_use>)> {
-                        use ::stecs::archetype::Archetype;
-                        self.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
+                        use ::stecs::{archetype::Archetype, storage::IdGenerator};
+                        self.ids.ids().filter_map(|id| self.get(id).map(move |item| (id, item)))
                     }
 
                     #query_mut
@@ -605,28 +608,26 @@ The given `ids` must not repeat and must be valid and present id's in the storag
         };
 
         let struct_of_archetype = {
-            let mut insert = struct_fields
-                .iter()
-                .map(|field| {
-                    let name = &field.name;
-                    quote! {
-                        self.#name.insert(value.#name);
-                    }
-                })
-                .collect::<Vec<_>>();
-            insert.push(quote! { let id = self.ids.insert(()); });
+            let mut insert = vec![quote! { let id = self.ids.spawn(); }];
+            insert.extend(struct_fields.iter().map(|field| {
+                let name = &field.name;
+                quote! {
+                    self.#name.insert(id, value.#name);
+                }
+            }));
             insert.push(quote! { id });
 
-            let mut remove = struct_fields
-                .iter()
-                .map(|field| {
-                    let name = &field.name;
-                    quote! {
-                        let #name = self.#name.remove(id)?;
-                    }
-                })
-                .collect::<Vec<_>>();
-            remove.push(quote! { self.ids.remove(id)?; });
+            let mut remove = vec![quote! {
+                if !self.ids.remove(id) {
+                    return None;
+                }
+            }];
+            remove.extend(struct_fields.iter().map(|field| {
+                let name = &field.name;
+                quote! {
+                    let #name = self.#name.remove(id)?;
+                }
+            }));
             let fields = struct_fields
                 .iter()
                 .map(|field| {
@@ -660,15 +661,15 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                 impl<#generics_family> ::stecs::archetype::Archetype<#generic_family_name> for #struct_of_name<#generics_family_use> {
                     type Item = #struct_name<#generics_use>;
                     fn ids(&self) -> impl Iterator<Item = #generic_family_name::Id> {
-                        use ::stecs::storage::Storage;
+                        use ::stecs::storage::IdGenerator;
                         self.ids.ids()
                     }
                     fn insert(&mut self, value: Self::Item) -> #generic_family_name::Id {
-                        use ::stecs::storage::Storage;
+                        use ::stecs::storage::{IdGenerator, Storage};
                         #(#insert)*
                     }
                     fn remove(&mut self, id: #generic_family_name::Id) -> Option<Self::Item> {
-                        use ::stecs::storage::Storage;
+                        use ::stecs::storage::{IdGenerator, Storage};
                         #(#remove)*
                     }
                     #dynamic
@@ -682,7 +683,7 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                 .map(|field| {
                     let name = &field.name;
                     quote! {
-                        #name: Default::default()
+                        #name: ::std::default::Default::default()
                     }
                 })
                 .collect::<Vec<_>>();
@@ -690,13 +691,16 @@ The given `ids` must not repeat and must be valid and present id's in the storag
             #[cfg(not(feature = "dynamic"))]
             let dynamic = quote! {};
             #[cfg(feature = "dynamic")]
-            let dynamic = quote! { r#dyn: Default::default(), };
+            let dynamic = quote! { r#dyn: ::std::default::Default::default(), };
 
             quote! {
-                impl<#generics_family> Default for #struct_of_name<#generics_family_use> {
+                impl<#generics_family> ::std::default::Default for #struct_of_name<#generics_family_use>
+                where
+                    #generic_family_name::Generator: ::std::default::Default
+                {
                     fn default() -> Self {
                         Self {
-                            ids: Default::default(),
+                            ids: ::std::default::Default::default(),
                             #dynamic
                             #(#fields),*
                         }
