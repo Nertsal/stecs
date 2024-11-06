@@ -273,6 +273,8 @@ pub use stecs_derive::storage_query as query;
 
 /// The traits for describing archetypes and split storages.
 pub mod archetype;
+#[cfg(feature = "dynamic")]
+pub mod dynamic;
 /// The [`Storage`](storage::Storage) trait and basic implementors.
 pub mod storage;
 

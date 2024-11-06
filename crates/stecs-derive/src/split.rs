@@ -339,7 +339,7 @@ This struct is a version of `{struct_name}` that holds mutable references to its
             fields.push(quote! { pub ids: #generic_family_name::Storage<()>, });
             fields.push(quote! {
                 #[cfg(feature = "dynamic")]
-                pub r#dyn: ::stecs::storage::dynamic::DynamicStorage<#generic_family_name::Id>,
+                pub r#dyn: ::stecs::dynamic::DynamicStorage<#generic_family_name::Id>,
             });
 
             let struct_of_doc = format!(
