@@ -4,8 +4,6 @@ pub use self::iter::*;
 
 use crate::storage::StorageFamily;
 
-use std::hash::Hash;
-
 /// A collection of components bundled together, or an entity type, or a generic SoA (struct of arrays).
 pub trait Archetype<F: StorageFamily>: Default {
     /// The type of the entity stored as components.
@@ -20,12 +18,12 @@ pub trait Archetype<F: StorageFamily>: Default {
     #[cfg(feature = "dynamic")]
     fn insert_dyn<T: anymap3::CloneAny + Clone>(&mut self, id: F::Id, component: T) -> Option<T>
     where
-        F::Id: 'static + Clone + Hash + Eq;
+        F::Id: 'static + Clone + std::hash::Hash + Eq;
     /// Remove a dynamic component from a specific entity.
     #[cfg(feature = "dynamic")]
     fn remove_dyn<T: anymap3::CloneAny + Clone>(&mut self, id: F::Id) -> Option<T>
     where
-        F::Id: 'static + Clone + Hash + Eq;
+        F::Id: 'static + Clone + std::hash::Hash + Eq;
 }
 
 /// A type synonym for a specific implementor of [Archetype] for convenient usage in type definitions.

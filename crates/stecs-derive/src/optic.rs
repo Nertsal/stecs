@@ -4,6 +4,7 @@ use quote::quote;
 
 #[derive(Debug, Clone)]
 pub enum Optic {
+    #[cfg(feature = "dynamic")]
     Dynamic {
         ty: syn::Type,
         component: OpticComponent,
@@ -36,6 +37,7 @@ pub enum OpticComponent {
 
 #[derive(Debug, Clone, Copy)]
 enum Access {
+    #[cfg(feature = "dynamic")]
     Owned,
     Borrow,
     BorrowMut,
@@ -64,6 +66,7 @@ impl Optic {
 
     fn access_impl(&self, is_mut: bool, id: TokenStream, archetype: TokenStream) -> TokenStream {
         match self {
+            #[cfg(feature = "dynamic")]
             Optic::Dynamic { ty, component } => {
                 let value_name = quote! { __value };
                 let storage = if is_mut {
@@ -113,6 +116,7 @@ impl Optic {
     #[cfg(feature = "query_mut")]
     pub fn access_many_mut(&self, ids: TokenStream, archetype: TokenStream) -> TokenStream {
         match self {
+            #[cfg(feature = "dynamic")]
             Optic::Dynamic { ty, component } => {
                 let value_name = quote! { __value };
                 let access = if component.is_identity() {
@@ -190,6 +194,7 @@ impl OpticComponent {
                 };
 
                 let convert = match access {
+                    #[cfg(feature = "dynamic")]
                     Access::Owned => quote! {},
                     Access::Borrow => quote! { .as_ref() },
                     Access::BorrowMut => quote! { .as_mut() },
@@ -218,19 +223,32 @@ enum OpticPart {
 
 impl Parse for Optic {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        if input.parse::<Option<syn::Token![dyn]>>()?.is_some() {
-            let ty: syn::Type = input.parse()?;
+        if let Some(_dyn) = input.parse::<Option<syn::Token![dyn]>>()? {
+            #[cfg(not(feature = "dynamic"))]
+            {
+                return Err(syn::Error::new_spanned(
+                    _dyn,
+                    "`dyn` components are not available because the `dynamic` feature is disabled",
+                ));
+            }
 
-            let component = if input.parse::<Option<syn::Token![.]>>()?.is_some() {
-                let parts =
-                    Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(input)?;
-                let parts: Vec<_> = parts.into_iter().collect();
-                build_component_optic(&parts)?
-            } else {
-                OpticComponent::Identity
-            };
+            #[cfg(feature = "dynamic")]
+            {
+                let ty: syn::Type = input.parse()?;
 
-            return Ok(Optic::Dynamic { ty, component });
+                let component = if input.parse::<Option<syn::Token![.]>>()?.is_some() {
+                    let parts =
+                        Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(
+                            input,
+                        )?;
+                    let parts: Vec<_> = parts.into_iter().collect();
+                    build_component_optic(&parts)?
+                } else {
+                    OpticComponent::Identity
+                };
+
+                return Ok(Optic::Dynamic { ty, component });
+            }
         }
 
         let parts = Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(input)?;

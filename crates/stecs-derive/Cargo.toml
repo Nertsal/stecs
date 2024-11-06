@@ -16,6 +16,7 @@ proc-macro = true
 [features]
 default = []
 query_mut = []
+dynamic = []
 
 [dependencies]
 darling = "0.20"

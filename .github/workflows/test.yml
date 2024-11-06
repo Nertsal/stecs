@@ -20,9 +20,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test-all-features
-          args: --all-targets
+          args: --workspace --all-targets
       - name: Test documentation
         uses: actions-rs/cargo@v1
         with:
-          command: test-all-features
-          args: --doc
+          command: test
+          args: --doc --all-features
