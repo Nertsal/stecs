@@ -21,10 +21,6 @@ pub unsafe trait Storage<T>: Default {
     /// Type of the identifier used for components/entities.
     type Id: Copy;
 
-    // TODO: remove?
-    fn phantom_data(&self) -> std::marker::PhantomData<Self::Family> {
-        Default::default()
-    }
     /// Insert a new component to at the specified id.
     fn insert(&mut self, id: Self::Id, value: T);
     /// Get an immutable reference to a component at the given id.

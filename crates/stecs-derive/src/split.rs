@@ -568,10 +568,6 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                         Self::default()
                     }
 
-                    pub fn phantom_data(&self) -> ::std::marker::PhantomData<#generic_family_name> {
-                        ::std::default::Default::default()
-                    }
-
                     #[doc = #get_doc]
                     pub fn get(&self, id: #generic_family_name::Id) -> Option<#struct_ref_name<'_, #generics_use>> {
                         use ::stecs::storage::Storage;
