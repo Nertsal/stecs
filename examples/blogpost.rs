@@ -1,9 +1,6 @@
 #![allow(dead_code)]
 
-use stecs::{
-    prelude::*,
-    storage::arena::{Arena, ArenaId},
-};
+use stecs::prelude::*;
 
 // Define an Archetype
 #[derive(SplitFields)]
@@ -23,8 +20,8 @@ struct Corpse {
 }
 
 struct World {
-    monsters: StructOf<Arena<Monster>>,
-    corpses: StructOf<Arena<Corpse>>,
+    monsters: StructOf<Dense<Monster>>,
+    corpses: StructOf<Dense<Corpse>>,
 }
 
 fn main() {
@@ -72,7 +69,7 @@ fn main() {
     // 1. define the struct
     #[derive(Debug)]
     struct MonsterRef<'a> {
-        id: ArenaId,
+        id: DenseId,
         position: &'a (f32, f32),
         damage: &'a f32,
     }

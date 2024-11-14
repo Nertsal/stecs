@@ -3,9 +3,9 @@ use stecs::prelude::*;
 
 #[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {
-    units: StructOf<Arena<Unit>>,         // UnitStructOf<VecFamily>,
-    corpses: StructOf<Arena<Corpse>>,     // CorpseStructOf<VecFamily>,
-    particles: StructOf<Arena<Particle>>, // ParticleStructOf<VecFamily>,
+    units: StructOf<Dense<Unit>>,         // UnitStructOf<DenseFamily>,
+    corpses: StructOf<Dense<Corpse>>,     // CorpseStructOf<DenseFamily>,
+    particles: StructOf<Dense<Particle>>, // ParticleStructOf<DenseFamily>,
 }
 
 #[derive(SplitFields, Debug)]
@@ -92,7 +92,7 @@ fn main() {
         // Declare a view struct to query into
         #[derive(Debug)]
         struct UnitRef<'a> {
-            id: ArenaId,
+            id: DenseId,
             pos: &'a (f32, f32),
             damage: &'a f32,
         }

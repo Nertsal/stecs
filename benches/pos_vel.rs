@@ -26,7 +26,7 @@ struct Unit {
 }
 
 struct World {
-    units: StructOf<Arena<Unit>>,
+    units: StructOf<Dense<Unit>>,
 }
 
 fn build() -> World {

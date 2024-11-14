@@ -13,20 +13,20 @@ pub trait Archetype<F: StorageFamily> {
     type Split: Split<F>;
     /// Return id's of all active entities.
     fn ids(&self) -> impl Iterator<Item = F::Id>;
-    /// Insert a new entity, returning its id.
-    fn insert(&mut self, value: Self::Item) -> F::Id;
+    // /// Insert a new entity, returning its id.
+    // fn insert(&mut self, value: Self::Item) -> F::Id;
     /// Remove an entity with the given id.
     fn remove(&mut self, id: F::Id) -> Option<Self::Item>;
-    /// Insert a dynamic component into a specific entity.
-    #[cfg(feature = "dynamic")]
-    fn insert_dyn<T: anymap3::CloneAny + Clone>(&mut self, id: F::Id, component: T) -> Option<T>
-    where
-        F::Id: 'static + Clone + std::hash::Hash + Eq;
-    /// Remove a dynamic component from a specific entity.
-    #[cfg(feature = "dynamic")]
-    fn remove_dyn<T: anymap3::CloneAny + Clone>(&mut self, id: F::Id) -> Option<T>
-    where
-        F::Id: 'static + Clone + std::hash::Hash + Eq;
+    // /// Insert a dynamic component into a specific entity.
+    // #[cfg(feature = "dynamic")]
+    // fn insert_dyn<T: anymap3::CloneAny + Clone>(&mut self, id: F::Id, component: T) -> Option<T>
+    // where
+    //     F::Id: 'static + Clone + std::hash::Hash + Eq;
+    // /// Remove a dynamic component from a specific entity.
+    // #[cfg(feature = "dynamic")]
+    // fn remove_dyn<T: anymap3::CloneAny + Clone>(&mut self, id: F::Id) -> Option<T>
+    // where
+    //     F::Id: 'static + Clone + std::hash::Hash + Eq;
 }
 
 /// A collection of components bundled together sharing id's from an outside [`Archetype`].

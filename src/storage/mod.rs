@@ -1,11 +1,5 @@
-/// Arena storage.
-#[cfg(feature = "arena")]
-pub mod arena;
-/// Hash storage.
-#[cfg(feature = "hashstorage")]
-pub mod hashstorage;
-// /// Vec storage.
-// pub mod vec;
+pub mod dense;
+pub mod sparse;
 
 /// A storage of components.
 pub trait Storage<T>: Default {

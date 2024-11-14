@@ -1,7 +1,7 @@
 use stecs::prelude::*;
 
 struct World {
-    units: StructOf<Arena<Unit>>,
+    units: StructOf<Dense<Unit>>,
 }
 
 #[derive(Debug, Clone)]

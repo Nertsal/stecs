@@ -1,7 +1,7 @@
 use stecs::prelude::*;
 
 struct World {
-    blocks: StructOf<Arena<Block>>,
+    blocks: StructOf<Dense<Block>>,
 }
 
 #[derive(SplitFields)]

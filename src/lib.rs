@@ -284,7 +284,7 @@ pub use slotmap;
 /// use `stecs::prelude::*;` to import all necessary traits, types, and macros.
 pub mod prelude {
     #[cfg(feature = "arena")]
-    pub use crate::storage::arena::{Arena, ArenaId};
+    pub use crate::storage::dense::{Dense, DenseId};
 
     pub use crate::{
         archetype::{Archetype, StructOf},
