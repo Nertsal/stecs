@@ -5,23 +5,23 @@ use stecs::prelude::*;
 // Define an Archetype
 #[derive(SplitFields)]
 #[split(debug, clone)] // derive Debug and Clone for generated reference types
-struct Monster {
-    position: (f32, f32),
-    health: f32,
-    tick: usize,
-    damage: Option<f32>,
+pub struct Monster {
+    pub position: (f32, f32),
+    pub health: f32,
+    pub tick: usize,
+    pub damage: Option<f32>,
 }
 
 #[derive(SplitFields)]
-struct Corpse {
+pub struct Corpse {
     #[split(nested)]
-    monster: Monster,
-    time: f32,
+    pub monster: Monster,
+    pub time: f32,
 }
 
-struct World {
-    monsters: StructOf<Dense<Monster>>,
-    corpses: StructOf<Dense<Corpse>>,
+pub struct World {
+    pub monsters: StructOf<Dense<Monster>>,
+    pub corpses: StructOf<Dense<Corpse>>,
 }
 
 fn main() {

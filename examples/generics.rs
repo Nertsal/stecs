@@ -1,22 +1,22 @@
 use stecs::prelude::*;
 
-struct World<'a> {
-    units: StructOf<Dense<Unit<'a>>>,
+pub struct World<'a> {
+    pub units: StructOf<Dense<Unit<'a>>>,
 }
 
 #[derive(SplitFields)]
 #[split(debug, clone)]
-struct Position<F: 'static> {
-    x: F,
-    y: F,
+pub struct Position<F: 'static> {
+    pub x: F,
+    pub y: F,
 }
 
 #[derive(SplitFields)]
 #[split(debug, clone)]
-struct Unit<'a> {
+pub struct Unit<'a> {
     #[split(nested)]
-    position: Position<f32>,
-    name: &'a str,
+    pub position: Position<f32>,
+    pub name: &'a str,
 }
 
 fn main() {

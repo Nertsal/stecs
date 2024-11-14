@@ -2,35 +2,35 @@
 use stecs::prelude::*;
 
 #[derive(Clone)] // `StructOf` implements Clone if possible
-struct GameWorld {
-    units: StructOf<Dense<Unit>>,         // UnitStructOf<DenseFamily>,
-    corpses: StructOf<Dense<Corpse>>,     // CorpseStructOf<DenseFamily>,
-    particles: StructOf<Dense<Particle>>, // ParticleStructOf<DenseFamily>,
+pub struct GameWorld {
+    pub units: StructOf<Dense<Unit>>,     // UnitStructOf<DenseFamily>,
+    pub corpses: StructOf<Dense<Corpse>>, // CorpseStructOf<DenseFamily>,
+    pub particles: StructOf<Dense<Particle>>, // ParticleStructOf<DenseFamily>,
 }
 
 #[derive(SplitFields, Debug)]
 #[split(debug)] // derive `Debug` for the `UnitRef` generated struct
-struct Unit {
-    pos: (f32, f32),
-    health: f32,
-    tick: usize,
-    damage: Option<f32>,
+pub struct Unit {
+    pub pos: (f32, f32),
+    pub health: f32,
+    pub tick: usize,
+    pub damage: Option<f32>,
 }
 
 #[derive(SplitFields)]
-struct Corpse {
+pub struct Corpse {
     // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
     // But you can still access the whole `Unit` as a single component.
     #[split(nested)]
-    unit: Unit,
-    time: f32,
+    pub unit: Unit,
+    pub time: f32,
 }
 
 #[derive(SplitFields, Debug)]
 #[split(clone)] // implement clone method for the `ParticleRef` generated struct to clone the data into a `Particle`
-struct Particle {
-    pos: (f32, f32),
-    time: f32,
+pub struct Particle {
+    pub pos: (f32, f32),
+    pub time: f32,
 }
 
 fn main() {

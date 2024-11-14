@@ -1,21 +1,21 @@
 use stecs::prelude::*;
 
-struct World {
-    blocks: StructOf<Dense<Block>>,
+pub struct World {
+    pub blocks: StructOf<Dense<Block>>,
 }
 
 #[derive(SplitFields)]
 #[split(debug)]
-struct Position {
-    x: i64,
+pub struct Position {
+    pub x: i64,
 }
 
 #[derive(SplitFields)]
 #[split(debug)]
-struct Block {
+pub struct Block {
     #[split(nested)]
-    position: Position,
-    height: i64,
+    pub position: Position,
+    pub height: i64,
 }
 
 fn main() {

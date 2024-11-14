@@ -90,7 +90,7 @@ unsafe impl<K: slotmap::Key> IdGenerator for DenseIdGenerator<K> {
     }
 }
 
-/// Family of [`SlotMap<K, V>`] storages.
+/// Family of [`Sparse<K, V>`] storages.
 pub struct SparseFamily<K: slotmap::Key>(std::marker::PhantomData<K>);
 
 impl<K: slotmap::Key> StorageFamily for SparseFamily<K> {

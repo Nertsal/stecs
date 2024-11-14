@@ -1,18 +1,18 @@
 use stecs::prelude::*;
 
-struct World {
-    units: StructOf<Dense<Unit>>,
+pub struct World {
+    pub units: StructOf<Dense<Unit>>,
 }
 
 #[derive(Debug, Clone)]
-struct Poisoned {
-    time: f32,
+pub struct Poisoned {
+    pub time: f32,
 }
 
 #[derive(SplitFields)]
 #[split(debug, clone)]
-struct Unit {
-    name: String,
+pub struct Unit {
+    pub name: String,
 }
 
 fn main() {
