@@ -7,7 +7,9 @@ use slotmap::{DenseSlotMap, SecondaryMap};
 
 slotmap::new_key_type! { pub struct DenseId; }
 
-/// Wrapper for a [`SlotMap`] storage.
+/// Wrapper for a [`SecondaryMap`] storage.
+///
+/// Note: uses a [`DenseSlotMap`] to store id's for optimal id iteration (query) speed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dense<T, K: slotmap::Key = DenseId>(SecondaryMap<K, T>);
 

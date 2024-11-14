@@ -709,14 +709,15 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                 }
             };
 
-            let insert_doc = format!(r#"TODO"#);
+            let insert_doc =
+                format!(r#"Insert a new entity of type [`{struct_name}`], returning its id."#);
 
             #[cfg(not(feature = "dynamic"))]
             let dynamic = quote! {};
             #[cfg(feature = "dynamic")]
             let dynamic = {
-                let insert_dyn_doc = format!(r#"TODO"#);
-                let remove_dyn_doc = format!(r#"TODO"#);
+                let insert_dyn_doc = r#"Insert a dynamic component into an entity."#.to_string();
+                let remove_dyn_doc = r#"Remove a dynamic component from an entity."#.to_string();
 
                 quote! {
                     #[doc = #insert_dyn_doc]
