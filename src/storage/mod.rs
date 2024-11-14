@@ -1,4 +1,6 @@
+#[cfg(feature = "slotmap")]
 pub mod dense;
+#[cfg(feature = "slotmap")]
 pub mod sparse;
 
 /// A storage of components.

@@ -28,7 +28,7 @@
 //! }
 //!
 //! struct World {
-//!     players: StructOf<Arena<Player>>,
+//!     players: StructOf<Dense<Player>>,
 //! }
 //!
 //! let mut world = World { players: Default::default() };
@@ -60,7 +60,7 @@
 //! }
 //! ```
 //!
-//! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, Arena).
+//! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, Dense).
 //!
 //! ```
 //! # use stecs::storage::StorageFamily;
@@ -87,7 +87,7 @@
 //! # use stecs::prelude::*;
 //! #
 //! # struct World {
-//! #     units: StructOf<Arena<Unit>>,
+//! #     units: StructOf<Dense<Unit>>,
 //! # }
 //! #
 //! # #[derive(SplitFields)]
@@ -99,7 +99,7 @@
 //! # let mut world = World { units: Default::default() };
 //! #
 //! # struct TargetView<'a> {
-//! #     id: ArenaId,
+//! #     id: DenseId,
 //! #     position: &'a mut f64,
 //! #     velocity: &'a f64,
 //! # }
@@ -188,7 +188,7 @@ pub use stecs_derive::SplitFields;
 /// # use stecs::prelude::*;
 /// #  
 /// # struct World {
-/// #     units: StructOf<Arena<Unit>>,
+/// #     units: StructOf<Dense<Unit>>,
 /// # }
 /// #
 /// # #[derive(SplitFields)]
@@ -204,7 +204,7 @@ pub use stecs_derive::SplitFields;
 /// #     damage: &'a i64,
 /// # }
 /// #
-/// # let id = ArenaId::from(slotmap::KeyData::from_ffi(1));
+/// # let id = DenseId::from(slotmap::KeyData::from_ffi(1));
 /// #
 /// get!(world.units, id, (&position, &mut damage.Get.Some));
 ///
@@ -230,7 +230,7 @@ pub use stecs_derive::storage_get as get;
 /// # use stecs::prelude::*;
 /// #  
 /// # struct World {
-/// #     units: StructOf<Arena<Unit>>,
+/// #     units: StructOf<Dense<Unit>>,
 /// # }
 /// #
 /// # #[derive(SplitFields)]
@@ -278,13 +278,16 @@ pub mod dynamic;
 /// The [`Storage`](storage::Storage) trait and basic implementors.
 pub mod storage;
 
-#[cfg(feature = "arena")]
+#[cfg(feature = "slotmap")]
 pub use slotmap;
 
 /// use `stecs::prelude::*;` to import all necessary traits, types, and macros.
 pub mod prelude {
-    #[cfg(feature = "arena")]
-    pub use crate::storage::dense::{Dense, DenseId};
+    #[cfg(feature = "slotmap")]
+    pub use crate::storage::{
+        dense::{Dense, DenseId},
+        sparse::{Sparse, SparseId},
+    };
 
     pub use crate::{
         archetype::{Archetype, StructOf},
