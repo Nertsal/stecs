@@ -11,16 +11,16 @@ homepage = "https://github.com/Nertsal/stecs"
 repository = "https://github.com/Nertsal/stecs"
 
 [features]
-default = ["slotmap", "query_mut"]
+default = ["query_mut"]
 query_mut = ["stecs-derive/query_mut"]
-dynamic = ["stecs-derive/dynamic"]
+dynamic = ["stecs-derive/dynamic", "dep:anymap3"]
 
 [workspace]
 members = ["crates/*"]
 
 [dependencies]
 stecs-derive = { path = "crates/stecs-derive", version = "0.1.0" }
-slotmap = { version = "1.0", optional = true }
+slotmap = "1.0"
 anymap3 = { version = "1.0.1", optional = true }
 
 [dev-dependencies]
@@ -32,33 +32,33 @@ all-features = true
 [[bench]]
 name = "pos_vel"
 harness = false
-required-features = ["slotmap", "query_mut"]
+required-features = ["query_mut"]
 [[bench]]
 name = "simple"
 harness = false
-required-features = ["slotmap", "query_mut"]
+required-features = ["query_mut"]
 
 [[example]]
 name = "full"
 doc-scrape-examples = true
-required-features = ["slotmap", "query_mut"]
+required-features = ["query_mut"]
 
 [[example]]
 name = "blogpost"
 doc-scrape-examples = true
-required-features = ["slotmap", "query_mut"]
+required-features = ["query_mut"]
 
 [[example]]
 name = "mutations"
 doc-scrape-examples = true
-required-features = ["slotmap", "query_mut"]
+required-features = ["query_mut"]
 
 [[example]]
 name = "generics"
 doc-scrape-examples = true
-required-features = ["slotmap"]
+required-features = []
 
 [[example]]
 name = "dynamic"
 doc-scrape-examples = true
-required-features = ["slotmap", "query_mut", "dynamic"]
+required-features = ["query_mut", "dynamic"]

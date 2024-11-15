@@ -278,12 +278,10 @@ pub mod dynamic;
 /// The [`Storage`](storage::Storage) trait and basic implementors.
 pub mod storage;
 
-#[cfg(feature = "slotmap")]
 pub use slotmap;
 
 /// use `stecs::prelude::*;` to import all necessary traits, types, and macros.
 pub mod prelude {
-    #[cfg(feature = "slotmap")]
     pub use crate::storage::{
         dense::{Dense, DenseId},
         sparse::{Sparse, SparseId},
