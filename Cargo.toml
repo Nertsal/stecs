@@ -41,7 +41,7 @@ required-features = ["query_mut"]
 [[example]]
 name = "full"
 doc-scrape-examples = true
-required-features = ["query_mut"]
+required-features = ["query_mut", "dynamic"]
 
 [[example]]
 name = "blogpost"

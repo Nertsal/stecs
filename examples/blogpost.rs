@@ -4,7 +4,7 @@ use stecs::prelude::*;
 
 // Define an Archetype
 #[derive(SplitFields)]
-#[split(debug, clone)] // derive Debug and Clone for generated reference types
+#[split(debug, to_owned)] // derive Debug and Clone for generated reference types
 pub struct Monster {
     pub position: (f32, f32),
     pub health: f32,

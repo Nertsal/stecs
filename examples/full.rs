@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 use stecs::prelude::*;
 
-#[derive(Clone)] // `StructOf` implements Clone if possible
+#[derive(Clone)]
+// ^ `StructOf` implements Clone if possible, but requires annotating archetypes with `#[split(clone)]`
 pub struct GameWorld {
     pub units: StructOf<Dense<Unit>>,     // UnitStructOf<DenseFamily>,
     pub corpses: StructOf<Dense<Corpse>>, // CorpseStructOf<DenseFamily>,
@@ -9,7 +10,10 @@ pub struct GameWorld {
 }
 
 #[derive(SplitFields, Debug)]
-#[split(debug)] // derive `Debug` for the `UnitRef` generated struct
+#[split(debug, to_owned, clone)]
+// ^(debug) derive `Debug` for the `UnitRef` generated struct
+// ^(to_owned) implement clone method for the `ParticleRef` generated struct to clone the data into a `Particle`
+// ^(clone) and allow the archetype to be cloned, if all components are Clone-able
 pub struct Unit {
     pub pos: (f32, f32),
     pub health: f32,
@@ -18,6 +22,7 @@ pub struct Unit {
 }
 
 #[derive(SplitFields)]
+#[split(clone)]
 pub struct Corpse {
     // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
     // But you can still access the whole `Unit` as a single component.
@@ -27,10 +32,15 @@ pub struct Corpse {
 }
 
 #[derive(SplitFields, Debug)]
-#[split(clone)] // implement clone method for the `ParticleRef` generated struct to clone the data into a `Particle`
+#[split(to_owned, clone)]
 pub struct Particle {
     pub pos: (f32, f32),
     pub time: f32,
+}
+
+#[derive(Clone)]
+pub struct Stunned {
+    pub timer: f32,
 }
 
 fn main() {
@@ -48,12 +58,15 @@ fn main() {
         tick: 7,
         damage: None,
     });
-    world.units.insert(Unit {
+    let enemy_id = world.units.insert(Unit {
         pos: (1.0, -2.0),
         health: 15.0,
         tick: 3,
         damage: Some(1.5),
     });
+
+    // Insert a dynamic component
+    world.units.insert_dyn(enemy_id, Stunned { timer: 1.0 });
 
     world.corpses.insert(Corpse {
         unit: Unit {

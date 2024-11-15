@@ -4,13 +4,13 @@ pub struct World {
     pub units: StructOf<Dense<Unit>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Poisoned {
     pub time: f32,
 }
 
 #[derive(SplitFields)]
-#[split(debug, clone)]
+#[split(debug)]
 pub struct Unit {
     pub name: String,
 }

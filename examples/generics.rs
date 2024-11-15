@@ -1,18 +1,19 @@
 use stecs::prelude::*;
 
+#[derive(Clone)]
 pub struct World<'a> {
     pub units: StructOf<Dense<Unit<'a>>>,
 }
 
 #[derive(SplitFields)]
-#[split(debug, clone)]
+#[split(debug, to_owned, clone)]
 pub struct Position<F: 'static> {
     pub x: F,
     pub y: F,
 }
 
 #[derive(SplitFields)]
-#[split(debug, clone)]
+#[split(debug, to_owned, clone)]
 pub struct Unit<'a> {
     #[split(nested)]
     pub position: Position<f32>,

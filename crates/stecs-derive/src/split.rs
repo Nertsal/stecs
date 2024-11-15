@@ -12,6 +12,7 @@ pub struct SplitOpts {
     data: ast::Data<(), FieldOpts>,
     generics: syn::Generics,
     debug: Option<()>,
+    to_owned: Option<()>,
     clone: Option<()>,
 }
 
@@ -30,6 +31,7 @@ struct Struct {
     generics: syn::Generics,
     debug: bool,
     to_owned: bool,
+    archetype_clone: bool,
 }
 
 struct Field {
@@ -72,7 +74,8 @@ impl TryFrom<SplitOpts> for Struct {
             fields,
             generics: value.generics,
             debug: value.debug.is_some(),
-            to_owned: value.clone.is_some(),
+            to_owned: value.to_owned.is_some(),
+            archetype_clone: value.clone.is_some(),
         })
     }
 }
@@ -93,6 +96,7 @@ impl Struct {
             generics: struct_generics,
             debug: struct_debug,
             to_owned: struct_to_owned,
+            archetype_clone,
         } = self;
 
         if struct_fields.iter().any(|field| field.name == "id") {
@@ -367,13 +371,20 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
             #[cfg(not(feature = "dynamic"))]
             let dynamic = quote! {};
             #[cfg(feature = "dynamic")]
-            let dynamic = quote! {
-                /// Dynamic components attached to the archetype.
-                ///
-                /// **Note**: not intended to be used directly,
-                /// but rather via methods and querying macros.
-                /// *It is only exposed to be accessible in queries*.
-                pub r#dyn: ::stecs::dynamic::DynamicStorage<#generic_family_name>,
+            let dynamic = {
+                let storage = if archetype_clone {
+                    quote! { ::stecs::dynamic::DynamicCloneStorage<#generic_family_name> }
+                } else {
+                    quote! { ::stecs::dynamic::DynamicStorage<#generic_family_name> }
+                };
+                quote! {
+                    /// Dynamic components attached to the archetype.
+                    ///
+                    /// **Note**: not intended to be used directly,
+                    /// but rather via methods and querying macros.
+                    /// *It is only exposed to be accessible in queries*.
+                    pub r#dyn: #storage,
+                }
             };
 
             let struct_of_doc = format!(
@@ -440,13 +451,13 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
         };
 
         // impl Clone for StructOf
-        let struct_of_clone = {
+        let struct_of_clone = if archetype_clone {
             #[cfg(not(feature = "dynamic"))]
             let (dynamic, dynamic_constraint) = (quote! {}, quote! {});
             #[cfg(feature = "dynamic")]
             let (dynamic, dynamic_constraint) = (
                 quote! { r#dyn: self.r#dyn.clone(), },
-                quote! { ::stecs::dynamic::DynamicStorage<#generic_family_name>: ::std::clone::Clone, },
+                quote! { ::stecs::dynamic::DynamicCloneStorage<#generic_family_name>: ::std::clone::Clone, },
             );
 
             quote! {
@@ -465,6 +476,8 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
                     }
                 }
             }
+        } else {
+            quote! {}
         };
 
         // impl StructSplit
@@ -739,12 +752,18 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                 let insert_dyn_doc = r#"Insert a dynamic component into an entity."#.to_string();
                 let remove_dyn_doc = r#"Remove a dynamic component from an entity."#.to_string();
 
+                let mut constraints = vec![quote! {#generic_family_name::Id: 'static,}];
+                if archetype_clone {
+                    constraints.push(quote! { __T: Clone + 'static });
+                } else {
+                    constraints.push(quote! { __T: 'static });
+                }
+
                 quote! {
                     #[doc = #insert_dyn_doc]
                     pub fn insert_dyn<__T>(&mut self, id: #generic_family_name::Id, component: __T)
                     where
-                        __T: Clone + 'static,
-                        #generic_family_name::Id: 'static,
+                        #(#constraints)*
                     {
                         self.r#dyn.insert(id, component)
                     }
@@ -752,8 +771,7 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                     #[doc = #remove_dyn_doc]
                     pub fn remove_dyn<__T>(&mut self, id: #generic_family_name::Id) -> Option<__T>
                     where
-                        __T: Clone + 'static,
-                        #generic_family_name::Id: 'static,
+                        #(#constraints)*
                     {
                         self.r#dyn.remove(id)
                     }
