@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 
 use anymap3::{CloneAny, Map};
 
-// TODO: rewrite anymap3
 // TODO: optional clone
 
 /// A storage of dynamic components.
