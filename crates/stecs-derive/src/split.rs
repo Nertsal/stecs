@@ -442,15 +442,19 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
         // impl Clone for StructOf
         let struct_of_clone = {
             #[cfg(not(feature = "dynamic"))]
-            let dynamic = quote! {};
+            let (dynamic, dynamic_constraint) = (quote! {}, quote! {});
             #[cfg(feature = "dynamic")]
-            let dynamic = quote! { r#dyn: self.r#dyn.clone(), };
+            let (dynamic, dynamic_constraint) = (
+                quote! { r#dyn: self.r#dyn.clone(), },
+                quote! { ::stecs::dynamic::DynamicStorage<#generic_family_name>: ::std::clone::Clone, },
+            );
 
             quote! {
                 impl<#generics_family> ::std::clone::Clone for #struct_of_name<#generics_family_use>
                 where
                     #generic_family_name::Generator: ::std::clone::Clone,
-                    #struct_split_name<#generics_family_use>: ::std::clone::Clone
+                    #struct_split_name<#generics_family_use>: ::std::clone::Clone,
+                    #dynamic_constraint
                 {
                     fn clone(&self) -> Self {
                         Self {
