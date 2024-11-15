@@ -743,7 +743,8 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                     #[doc = #insert_dyn_doc]
                     pub fn insert_dyn<__T>(&mut self, id: #generic_family_name::Id, component: __T)
                     where
-                        #generic_family_name::Storage<__T>: ::anymap3::CloneAny
+                        __T: Clone + 'static,
+                        #generic_family_name::Id: 'static,
                     {
                         self.r#dyn.insert(id, component)
                     }
@@ -751,7 +752,8 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                     #[doc = #remove_dyn_doc]
                     pub fn remove_dyn<__T>(&mut self, id: #generic_family_name::Id) -> Option<__T>
                     where
-                        #generic_family_name::Storage<__T>: ::anymap3::CloneAny
+                        __T: Clone + 'static,
+                        #generic_family_name::Id: 'static,
                     {
                         self.r#dyn.remove(id)
                     }

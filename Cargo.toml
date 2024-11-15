@@ -13,8 +13,7 @@ repository = "https://github.com/Nertsal/stecs"
 [features]
 default = ["slotmap", "query_mut"]
 query_mut = ["stecs-derive/query_mut"]
-slotmap = ["dep:slotmap"]
-dynamic = ["stecs-derive/dynamic", "dep:anymap3"]
+dynamic = ["stecs-derive/dynamic"]
 
 [workspace]
 members = ["crates/*"]

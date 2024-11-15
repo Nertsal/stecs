@@ -1,6 +1,4 @@
-#[cfg(feature = "slotmap")]
 pub mod dense;
-#[cfg(feature = "slotmap")]
 pub mod sparse;
 
 /// A storage of components.
@@ -8,7 +6,7 @@ pub trait Storage<T>: Default {
     /// Type of the abstract family corresponding to the storages of this type.
     type Family: StorageFamily;
     /// Type of the identifier used for components/entities.
-    type Id: Copy;
+    type Id: slotmap::Key;
 
     /// Insert a new component to at the specified id.
     fn insert(&mut self, id: Self::Id, value: T);
@@ -44,7 +42,7 @@ pub trait Storage<T>: Default {
 /// A family of storages for different component types.
 pub trait StorageFamily {
     /// Type of the identifier used for components/entities.
-    type Id: Copy;
+    type Id: slotmap::Key;
     /// Type of a specific storage.
     type Storage<T>: Storage<T, Family = Self, Id = Self::Id>;
     type Generator: IdGenerator<Id = Self::Id>;
@@ -59,7 +57,7 @@ pub trait StorageFamily {
 ///
 pub unsafe trait IdGenerator {
     /// The identifier type being generated.
-    type Id: Copy;
+    type Id: slotmap::Key;
 
     /// Returns the unique id's of all active entities in the storage in an arbitrary order.
     ///

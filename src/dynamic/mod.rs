@@ -1,4 +1,4 @@
-use crate::storage::{Storage, StorageFamily};
+use crate::storage::{sparse::Sparse, Storage, StorageFamily};
 
 use std::marker::PhantomData;
 
@@ -15,11 +15,7 @@ pub struct DynamicStorage<F> {
     id: PhantomData<F>,
 }
 
-// TODO: should really be Sparse most of the time;
-// maybe independent from the main storage type.
-// Could depend on component type via a trait,
-// but then we cannot match Id's freely.
-type InnerMap<F, T> = <F as StorageFamily>::Storage<T>;
+type InnerMap<F, T> = Sparse<T, <F as StorageFamily>::Id>;
 
 impl<F> Clone for DynamicStorage<F> {
     fn clone(&self) -> Self {
