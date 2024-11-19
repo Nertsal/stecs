@@ -1,5 +1,7 @@
 use crate::syn;
 
+use std::collections::HashMap;
+
 use darling::{ast, FromDeriveInput, FromField};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -14,11 +16,12 @@ pub struct WorldOpts {
 }
 
 #[derive(FromField)]
-#[darling(attributes(split))]
+#[darling(attributes(groups), forward_attrs)]
 struct FieldOpts {
     ident: Option<syn::Ident>,
     // ty: syn::Type,
-    // groups: Option<Vec<()>>,
+    attrs: Vec<syn::Attribute>,
+    // groups: Option<Vec<syn::LitStr>>,
 }
 
 struct Struct {
@@ -31,7 +34,7 @@ struct Struct {
 struct Field {
     name: syn::Ident,
     // ty: syn::Type,
-    // groups: Vec<()>,
+    groups: Vec<syn::LitStr>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -40,6 +43,8 @@ enum ParseError {
     NotAStruct,
     #[error("field has no name")]
     NamelessField,
+    #[error("`groups` attribute accepts only a list of string literals: {0}")]
+    InvalidGroups(syn::Error),
 }
 
 impl TryFrom<WorldOpts> for Struct {
@@ -58,6 +63,7 @@ impl TryFrom<WorldOpts> for Struct {
                 Ok(Field {
                     name,
                     // ty: field.ty
+                    groups: extract_groups(&field.attrs)?,
                 })
             })
             .collect::<Result<Vec<Field>, ParseError>>()?;
@@ -68,6 +74,38 @@ impl TryFrom<WorldOpts> for Struct {
             // generics: value.generics,
         })
     }
+}
+
+struct Groups(syn::punctuated::Punctuated<syn::LitStr, syn::Token![,]>);
+
+impl syn::parse::Parse for Groups {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let ident: syn::Ident = input.parse()?;
+        if ident != "groups" {
+            return Err(syn::Error::new_spanned(ident, "unexpected field"));
+        }
+
+        input.parse::<syn::Token![=]>()?;
+
+        let groups;
+        syn::bracketed!(groups in input);
+
+        let groups =
+            syn::punctuated::Punctuated::<syn::LitStr, syn::Token![,]>::parse_terminated(&groups)?;
+
+        Ok(Self(groups))
+    }
+}
+
+fn extract_groups(attrs: &[syn::Attribute]) -> Result<Vec<syn::LitStr>, ParseError> {
+    let mut result = Vec::new();
+    for attr in attrs {
+        let groups = attr
+            .parse_args::<Groups>()
+            .map_err(ParseError::InvalidGroups)?;
+        result.extend(groups.0.into_iter());
+    }
+    Ok(result)
 }
 
 impl WorldOpts {
@@ -102,9 +140,24 @@ impl Struct {
         let all_fields = self.fields.iter().map(|field| &field.name);
         let query_all = generate_query(quote! { query_all }, all_fields);
 
+        let query_groups = {
+            let mut groups: HashMap<String, Vec<&syn::Ident>> = HashMap::new();
+            for field in &self.fields {
+                for group in &field.groups {
+                    groups.entry(group.value()).or_default().push(&field.name);
+                }
+            }
+            groups.into_iter().map(|(group, fields)| {
+                let name =
+                    syn::Ident::new(&format!("query_{}", group), proc_macro2::Span::call_site());
+                generate_query(name, fields)
+            })
+        };
+
         quote! {
             #default
             #query_all
+            #(#query_groups)*
         }
     }
 }

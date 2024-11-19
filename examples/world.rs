@@ -10,18 +10,6 @@ pub struct World {
     pub particles: StructOf<Dense<Particle>>,
 }
 
-// macro_rules! query_all {
-//     ($world:expr, $args:tt) => {
-//         query!([$world.players, $world.enemies, $world.particles], $args)
-//     };
-// }
-
-// macro_rules! actors {
-//     ($world:expr) => {
-//         [$world.players, $world.enemies]
-//     };
-// }
-
 #[derive(SplitFields)]
 pub struct Position {
     pub x: f32,
@@ -35,6 +23,7 @@ pub struct Particle {
 }
 
 #[derive(SplitFields)]
+#[split(debug)]
 pub struct Actor {}
 
 pub enum EnemyAi {
@@ -63,5 +52,9 @@ fn main() {
 
     for position in query_all!(world, (&position.x)) {
         println!("entity at position: {}", position);
+    }
+
+    for actor in query_actor!(world, (&actor)) {
+        println!("actor: {:?}", actor);
     }
 }
