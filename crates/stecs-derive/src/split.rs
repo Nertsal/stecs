@@ -115,6 +115,8 @@ impl Struct {
         );
 
         let generic_family_name = quote! { __F }; // NOTE: mangled name to avoid conflicts
+        let lifetime_ref_name = quote! { '__a }; // NOTE: mangled name to avoid conflicts
+
         let (generics, generics_family, generics_use, generics_family_use) = {
             let params: Vec<_> = struct_generics.params.iter().collect();
             let params_use: Vec<_> = params
@@ -140,7 +142,7 @@ impl Struct {
                 .iter()
                 .position(|param| !matches!(param, syn::GenericParam::Lifetime(_)))
                 .unwrap_or(params.len());
-            let mut params_family: Vec<_> = params.iter().map(|param| quote! { #param}).collect();
+            let mut params_family: Vec<_> = params.iter().map(|param| quote! { #param }).collect();
             params_family.insert(
                 i,
                 quote! { #generic_family_name: ::stecs::storage::StorageFamily },
@@ -157,27 +159,40 @@ impl Struct {
             )
         };
 
-        let to_owned_constraints = struct_generics
-            .params
-            .iter()
-            .map(|generic| match generic {
-                syn::GenericParam::Lifetime(_) => quote! {},
-                syn::GenericParam::Type(param) => {
-                    let name = &param.ident;
-                    quote! { #name: ::std::clone::Clone, }
-                }
-                syn::GenericParam::Const(_) => quote! {},
-            })
-            .collect::<Vec<_>>();
+        // Include phantom data to avoid problems with generics
+        // when there are no fields in the archetype
+        let include_phantom = struct_fields.is_empty();
+        let phantom_field_name = quote! { __phantom };
+        let phantom_field =
+            quote! { pub #phantom_field_name: ::std::marker::PhantomData<#generic_family_name> };
+        let phantom_field_ref =
+            quote! { pub #phantom_field_name: ::std::marker::PhantomData<&#lifetime_ref_name ()> };
+        let phantom_field_init = quote! { #phantom_field_name: ::std::marker::PhantomData, };
 
         let struct_to_owneded = {
-            let fields = struct_fields
+            let to_owned_constraints = struct_generics
+                .params
+                .iter()
+                .map(|generic| match generic {
+                    syn::GenericParam::Lifetime(_) => quote! {},
+                    syn::GenericParam::Type(param) => {
+                        let name = &param.ident;
+                        quote! { #name: ::std::clone::Clone, }
+                    }
+                    syn::GenericParam::Const(_) => quote! {},
+                })
+                .collect::<Vec<_>>();
+
+            let mut fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
                     quote! { #name: self.#name.clone(), }
                 })
                 .collect::<Vec<_>>();
+            if include_phantom {
+                fields.push(phantom_field_init.clone());
+            }
 
             quote! {
                 pub fn clone(&self) -> #struct_name<#generics_use>
@@ -193,9 +208,8 @@ impl Struct {
         // struct StructRef
         let struct_ref_name =
             syn::Ident::new(&format!("{struct_name}Ref"), proc_macro2::Span::call_site());
-        let lifetime_ref_name = quote! { '__a }; // NOTE: mangled name to avoid conflicts
         let struct_ref = {
-            let fields = struct_fields
+            let mut fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
@@ -208,6 +222,9 @@ impl Struct {
                     quote! { pub #name: #ty, }
                 })
                 .collect::<Vec<_>>();
+            if include_phantom {
+                fields.push(phantom_field_ref.clone());
+            }
 
             let derive = if struct_debug {
                 quote! { #[derive(Debug)] }
@@ -249,7 +266,7 @@ This struct is a version of [`{struct_name}`] that holds references to its field
             proc_macro2::Span::call_site(),
         );
         let struct_ref_mut = {
-            let fields = struct_fields
+            let mut fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
@@ -262,6 +279,9 @@ This struct is a version of [`{struct_name}`] that holds references to its field
                     quote! { pub #name: #ty, }
                 })
                 .collect::<Vec<_>>();
+            if include_phantom {
+                fields.push(phantom_field_ref.clone());
+            }
 
             let derive = if struct_debug {
                 quote! { #[derive(Debug)] }
@@ -335,7 +355,7 @@ This struct is a version of [`{struct_name}`] that holds mutable references to i
 
         // struct StructSplit
         let struct_split = {
-            let fields = struct_fields
+            let mut fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
@@ -350,6 +370,9 @@ This struct is a version of [`{struct_name}`] that holds mutable references to i
                     }
                 })
                 .collect::<Vec<_>>();
+            if include_phantom {
+                fields.push(phantom_field.clone());
+            }
 
             let struct_of_doc = format!(
                 r#"Generated by `#[derive(SplitFields)]`.
@@ -428,13 +451,16 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
                 })
                 .collect::<Vec<_>>();
 
-            let clone = struct_fields
+            let mut clone = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
                     quote! { #name: self.#name.clone(), }
                 })
                 .collect::<Vec<_>>();
+            if include_phantom {
+                clone.push(phantom_field_init.clone());
+            }
 
             quote! {
                 impl<#generics_family> ::std::clone::Clone for #struct_split_name<#generics_family_use>
@@ -482,13 +508,16 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
 
         // impl StructSplit
         let struct_split_impl = {
-            let fields = struct_fields
+            let mut fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
                     quote! { #name, }
                 })
                 .collect::<Vec<_>>();
+            if include_phantom {
+                fields.push(phantom_field_init.clone());
+            }
 
             let mut get = struct_fields
                 .iter()
@@ -528,7 +557,7 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
             #[cfg(feature = "query_mut")]
             let query_mut = {
                 let mut get_many_mut = Vec::new();
-                if fields.is_empty() {
+                if struct_fields.is_empty() {
                     // No fields
                     get_many_mut.push(quote! { ::std::iter::empty() });
                 } else {
@@ -895,15 +924,16 @@ The given `ids` must not repeat and must be valid and present id's in the storag
 
         // impl Default for StructSplit
         let struct_split_default = {
-            let fields = struct_fields
+            let mut fields = struct_fields
                 .iter()
                 .map(|field| {
                     let name = &field.name;
-                    quote! {
-                        #name: ::std::default::Default::default()
-                    }
+                    quote! { #name: ::std::default::Default::default(), }
                 })
                 .collect::<Vec<_>>();
+            if include_phantom {
+                fields.push(phantom_field_init.clone());
+            }
 
             quote! {
                 impl<#generics_family> ::std::default::Default for #struct_split_name<#generics_family_use>
@@ -912,7 +942,7 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                 {
                     fn default() -> Self {
                         Self {
-                            #(#fields),*
+                            #(#fields)*
                         }
                     }
                 }

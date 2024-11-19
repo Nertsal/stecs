@@ -62,3 +62,8 @@ required-features = []
 name = "dynamic"
 doc-scrape-examples = true
 required-features = ["query_mut", "dynamic"]
+
+[[example]]
+name = "world"
+doc-scrape-examples = true
+required-features = []
