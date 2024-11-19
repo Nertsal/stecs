@@ -7,6 +7,16 @@ mod get;
 mod optic;
 mod query;
 mod split;
+mod world;
+
+#[proc_macro_derive(World, attributes(world))]
+pub fn derive_world(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input: syn::DeriveInput = syn::parse_macro_input!(input);
+    match world::WorldOpts::from_derive_input(&input) {
+        Ok(input) => input.derive().into(),
+        Err(e) => e.write_errors().into(),
+    }
+}
 
 #[proc_macro_derive(SplitFields, attributes(split))]
 pub fn derive_split_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

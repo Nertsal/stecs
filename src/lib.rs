@@ -178,6 +178,9 @@
 ///
 pub use stecs_derive::SplitFields;
 
+// TODO: docs
+pub use stecs_derive::World;
+
 /// Get components of a specific entity.
 ///
 /// Syntax is identical to [`query!`], with an additional `id` argument right after the archetype.
@@ -291,6 +294,6 @@ pub mod prelude {
         archetype::{Archetype, StructOf},
         get, query,
         storage::{IdGenerator, Storage},
-        SplitFields,
+        SplitFields, World,
     };
 }

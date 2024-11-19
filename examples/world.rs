@@ -1,11 +1,26 @@
 use stecs::prelude::*;
 
-// #[derive(World)]
+#[derive(World)]
 pub struct World {
+    #[world(groups = ["actor"])]
     pub players: StructOf<Dense<Player>>,
+    #[world(groups = ["actor"])]
     pub enemies: StructOf<Dense<Enemy>>,
+    #[world(groups = [])]
     pub particles: StructOf<Dense<Particle>>,
 }
+
+// macro_rules! query_all {
+//     ($world:expr, $args:tt) => {
+//         query!([$world.players, $world.enemies, $world.particles], $args)
+//     };
+// }
+
+// macro_rules! actors {
+//     ($world:expr) => {
+//         [$world.players, $world.enemies]
+//     };
+// }
 
 #[derive(SplitFields)]
 pub struct Position {
@@ -43,4 +58,10 @@ pub struct Enemy {
     pub ai: EnemyAi,
 }
 
-fn main() {}
+fn main() {
+    let world = World::default();
+
+    for position in query_all!(world, (&position.x)) {
+        println!("entity at position: {}", position);
+    }
+}
