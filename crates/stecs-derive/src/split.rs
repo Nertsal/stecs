@@ -549,7 +549,7 @@ This struct is a version of [`{struct_name}`] that holds each field in its own [
                 r#"Get an immutable reference to all components of this archetype, i.e. a [`{struct_ref_name}`]"#
             );
             let get_mut_doc = format!(
-                r#"Get an mutable reference to all components of this archetype, i.e. a [`{struct_ref_mut_name}`]"#
+                r#"Get a mutable reference to all components of this archetype, i.e. a [`{struct_ref_mut_name}`]"#
             );
 
             #[cfg(not(feature = "query_mut"))]
