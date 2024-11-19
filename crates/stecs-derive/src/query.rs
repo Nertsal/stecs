@@ -66,43 +66,52 @@ impl Parse for QueryOpts {
 
 impl QueryOpts {
     pub fn query(self) -> TokenStream {
-        let (fields, constructor) = self.image.prepare_fields_constructor();
-        if fields.is_empty() {
-            return quote! { ::std::iter::empty() };
-        }
-
         let mut result = vec![];
+
         for storage in &self.struct_ofs {
-            let mut query = vec![];
+            let generation = self.image.prepare_fields_constructor(storage);
+            if generation.fields.is_empty() {
+                // NOTE: can return because the fields are all the same for each structof
+                return quote! { ::std::iter::empty() };
+            }
+
+            let mut query = generation.get_extensions;
 
             // Get each field
             let id_expr = quote! { __ID }; // NOTE: mangled to avoid conflicts
             let ids_expr = quote! { ::stecs::storage::IdGenerator::ids(&#storage.ids) };
-            query.extend(fields.iter().map(|(name, is_mut, optic)| {
-                let name = &name.mangled;
-                if *is_mut {
-                    #[cfg(feature = "query_mut")]
-                    {
-                        let component =
-                            optic.access_many_mut(ids_expr.clone(), quote! { #storage });
-                        quote! { let #name = #component; }
-                    }
-
+            query.extend(generation.fields.iter().map(|field| {
+                let name = &field.name.mangled;
+                if field.is_mut {
                     #[cfg(not(feature = "query_mut"))]
                     panic!(
                         "The `query_mut` feature is disabled, so mutable queries are not supported"
                     );
-                } else if matches!(optic, Optic::GetId) {
+
+                    #[cfg(feature = "query_mut")]
+                    {
+                        let storage = quote! { #storage };
+                        #[cfg(feature = "dynamic")]
+                        let storage = field
+                            .extension
+                            .as_ref()
+                            .map_or(storage, |ext| quote! { #ext });
+                        let component = field.optic.access_many_mut(ids_expr.clone(), storage);
+                        quote! { let #name = #component; }
+                    }
+                } else if matches!(field.optic, Optic::GetId) {
                     quote! {
                         let #name = #ids_expr;
                     }
                 } else {
-                    let component = optic.access(id_expr.clone(), quote! { #storage });
-                    #[cfg(not(feature = "dynamic"))]
-                    let dynamic = false;
+                    let storage = quote! { #storage };
                     #[cfg(feature = "dynamic")]
-                    let dynamic = matches!(optic, Optic::Dynamic { .. });
-                    if dynamic {
+                    let storage = field
+                        .extension
+                        .as_ref()
+                        .map_or(storage, |ext| quote! { #ext });
+                    let component = field.optic.access(id_expr.clone(), quote! { #storage });
+                    if field.optic.is_dynamic() {
                         quote! {
                             let #name = #ids_expr.map(|#id_expr| {
                                 #component
@@ -121,40 +130,43 @@ impl QueryOpts {
 
             // Zip fields
             query.push(quote! {});
-            let mut tail = fields.iter();
-            if let Some((name, _, _)) = tail.next() {
-                let name = &name.mangled;
+            let mut tail = generation.fields.iter();
+            if let Some(field) = tail.next() {
+                let name = &field.name.mangled;
                 query.push(quote! { #name });
             }
-            query.extend(tail.map(|(name, _, _)| {
-                let name = &name.mangled;
+            query.extend(tail.map(|field| {
+                let name = &field.name.mangled;
                 quote! { .zip(#name) }
             }));
 
             // Construct args for map
             let mut args = quote! {};
-            let mut tail = fields.iter();
-            if let Some((name, _, _)) = tail.next() {
-                let name = &name.mangled;
+            let mut tail = generation.fields.iter();
+            if let Some(field) = tail.next() {
+                let name = &field.name.mangled;
                 args = quote! { #name };
             }
-            for (name, _, _) in tail {
-                let name = &name.mangled;
+            for field in tail {
+                let name = &field.name.mangled;
                 args = quote! { (#args, #name) };
             }
 
             // Filter only values that are Some
-            let filtered = fields
+            let filtered = generation
+                .fields
                 .iter()
-                .map(|(name, _, optic)| {
-                    let optional = match optic {
+                .map(|field| {
+                    let optional = match &field.optic {
                         #[cfg(feature = "dynamic")]
                         Optic::Dynamic { component, .. } => component.is_prism(),
+                        #[cfg(feature = "dynamic")]
+                        Optic::Extension { component, .. } => component.is_prism(),
                         Optic::GetId => false,
                         Optic::Access { component, .. } => component.is_prism(),
                     };
                     if optional {
-                        let name = &name.mangled;
+                        let name = &field.name.mangled;
                         quote! { let #name = #name?; }
                     } else {
                         quote! {}
@@ -163,6 +175,7 @@ impl QueryOpts {
                 .collect::<Vec<_>>();
 
             // map
+            let constructor = generation.constructor;
             query.push(quote! {
                 .filter_map(|#args| {
                     #(#filtered)*
@@ -179,7 +192,7 @@ impl QueryOpts {
 
         quote! {
             {
-                use ::stecs::storage::{IdGenerator, Storage};
+                use ::stecs::storage::Storage;
                 #[allow(non_snake_case)]
                 #(#result)*
             }

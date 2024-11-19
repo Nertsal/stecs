@@ -44,9 +44,9 @@ pub trait StructOfAble {
 /// Implemented for structs (static archetypes) to split into components.
 pub trait SplitFields<F: StorageFamily>: Sized {
     /// The [`Archetype`] for the structure.
-    type StructOf: Archetype<F, Split = Self::Split>;
+    type StructOf: Archetype<F, Split = Self::Split, Item = Self>;
     /// The [`Split`] of the structure.
-    type Split: Split<F>;
+    type Split: Split<F, Item = Self>;
 }
 
 /// The trait describing what types act as a borrowed and mutably borrowed versions.

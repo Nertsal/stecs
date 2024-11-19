@@ -751,12 +751,20 @@ The given `ids` must not repeat and must be valid and present id's in the storag
             let dynamic = {
                 let insert_dyn_doc = r#"Insert a dynamic component into an entity."#.to_string();
                 let remove_dyn_doc = r#"Remove a dynamic component from an entity."#.to_string();
+                let extend_dyn_doc =
+                    r#"Extend an entity with a dynamic bundle of components."#.to_string();
 
                 let mut constraints = vec![quote! {#generic_family_name::Id: 'static,}];
+                let mut extend_constraints = constraints.clone();
+                extend_constraints
+                    .push(quote! { __T: ::stecs::archetype::SplitFields<#generic_family_name>, });
+                extend_constraints.push(quote! { __T::Split: Default, });
                 if archetype_clone {
-                    constraints.push(quote! { __T: Clone + 'static });
+                    constraints.push(quote! { __T: Clone + 'static, });
+                    extend_constraints.push(quote! { __T::Split: Clone + 'static });
                 } else {
-                    constraints.push(quote! { __T: 'static });
+                    constraints.push(quote! { __T: 'static, });
+                    extend_constraints.push(quote! { __T::Split: 'static });
                 }
 
                 quote! {
@@ -774,6 +782,14 @@ The given `ids` must not repeat and must be valid and present id's in the storag
                         #(#constraints)*
                     {
                         self.r#dyn.remove(id)
+                    }
+
+                    #[doc = #extend_dyn_doc]
+                    pub fn extend_dyn<__T>(&mut self, id: #generic_family_name::Id, bundle: __T)
+                    where
+                        #(#extend_constraints)*
+                    {
+                        self.r#dyn.extension(id, bundle)
                     }
                 }
             };

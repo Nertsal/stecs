@@ -15,22 +15,22 @@ impl StorageGetOpts {
         //     },
         // }
 
-        let (fields, constructor) = self.image.prepare_fields_constructor();
-        let mut get_fields = constructor;
-
         let storage = &self.struct_of;
         let id = &self.id;
-        for (name, is_mut, optic) in fields.into_iter().rev() {
-            let name = &name.mangled;
-            let access = if is_mut {
-                optic.access_mut(quote! { #id }, quote! { #storage })
+        let generation = self.image.prepare_fields_constructor(storage);
+        let mut get_fields = generation.constructor;
+
+        for field in generation.fields.into_iter().rev() {
+            let name = &field.name.mangled;
+            let access = if field.is_mut {
+                field.optic.access_mut(quote! { #id }, quote! { #storage })
             } else {
-                optic.access(quote! { #id }, quote! { #storage })
+                field.optic.access(quote! { #id }, quote! { #storage })
             };
 
-            get_fields = match optic {
+            get_fields = match field.optic {
                 #[cfg(feature = "dynamic")]
-                Optic::Dynamic { .. } => quote! {
+                Optic::Dynamic { .. } | Optic::Extension { .. } => quote! {
                     {
                         let #name = #access;
                         #get_fields
@@ -64,6 +64,8 @@ impl StorageGetOpts {
                 }
             };
         }
+
+        get_fields.extend(generation.get_extensions);
 
         quote! {{
             #[allow(non_snake_case)]

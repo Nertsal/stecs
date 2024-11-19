@@ -9,6 +9,12 @@ pub enum Optic {
         ty: syn::Type,
         component: OpticComponent,
     },
+    #[cfg(feature = "dynamic")]
+    Extension {
+        ty: syn::Type,
+        storage: OpticStorage,
+        component: OpticComponent,
+    },
     GetId,
     Access {
         storage: OpticStorage,
@@ -54,6 +60,17 @@ impl Access {
 }
 
 impl Optic {
+    pub fn is_dynamic(&self) -> bool {
+        match self {
+            #[cfg(feature = "dynamic")]
+            Optic::Dynamic { .. } => true,
+            #[cfg(feature = "dynamic")]
+            Optic::Extension { .. } => true,
+            Optic::GetId => false,
+            Optic::Access { .. } => false,
+        }
+    }
+
     /// Access the target component immutably.
     pub fn access(&self, id: TokenStream, archetype: TokenStream) -> TokenStream {
         self.access_impl(false, id, archetype)
@@ -83,6 +100,34 @@ impl Optic {
                         let #value_name = #storage;
                         #access
                     }}
+                }
+            }
+            #[cfg(feature = "dynamic")]
+            Optic::Extension {
+                ty: _,
+                storage,
+                component,
+            } => {
+                let storage = storage.access(archetype);
+
+                let getter = if is_mut {
+                    quote! { get_mut }
+                } else {
+                    quote! { get }
+                };
+
+                if component.is_identity() {
+                    quote! { #storage.#getter(#id) }
+                } else {
+                    let value_name = quote! { __value };
+                    let access =
+                        component.access_impl(Access::borrow(is_mut), quote! { #value_name });
+                    quote! {
+                        match #storage.#getter(#id) {
+                            None => None,
+                            Some(#value_name) => { Some(#access) }
+                        }
+                    }
                 }
             }
             Optic::GetId => id,
@@ -127,6 +172,26 @@ impl Optic {
                 };
                 quote! {
                     unsafe { #archetype.r#dyn.get_many_mut::<#ty>(#ids) } #access
+                }
+            }
+            #[cfg(feature = "dynamic")]
+            Optic::Extension {
+                ty: _,
+                storage,
+                component,
+            } => {
+                let archetype = storage.access(archetype);
+
+                let value_name = quote! { __value };
+                let access = if component.is_identity() {
+                    quote! {}
+                } else {
+                    let access = component.access_impl(Access::BorrowMut, quote! { #value_name });
+                    quote! { .map(|#value_name| #access) }
+                };
+
+                quote! {
+                    unsafe { #archetype.get_many_unchecked_mut(#ids) } #access
                 }
             }
             Optic::GetId => ids,
@@ -223,6 +288,7 @@ enum OpticPart {
 
 impl Parse for Optic {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        // Dynamic
         if let Some(_dyn) = input.parse::<Option<syn::Token![dyn]>>()? {
             #[cfg(not(feature = "dynamic"))]
             {
@@ -250,6 +316,41 @@ impl Parse for Optic {
                 return Ok(Optic::Dynamic { ty, component });
             }
         }
+
+        // Extension
+        let _extension = if input
+            .fork()
+            .parse::<Option<syn::Ident>>()?
+            .filter(|ident| ident == "ext")
+            .is_some()
+        {
+            let _ext = input.parse::<syn::Ident>().expect("parsed ext");
+
+            #[cfg(not(feature = "dynamic"))]
+            {
+                return Err(syn::Error::new_spanned(
+                    _ext,
+                    "`ext` extensions are not available because the `dynamic` feature is disabled",
+                ));
+            }
+
+            let ty: syn::Type = input.parse()?;
+            let mut some = false;
+            if input.parse::<Option<syn::Token![.]>>()?.is_some() {
+                if let Some(ident) = input.parse::<Option<syn::Ident>>()? {
+                    if ident != "Some" {
+                        return Err(syn::Error::new_spanned(
+                            ident, "unexpected token, you might be missing a `.Some` to filter existing extensions"
+                        ));
+                    }
+                    some = true;
+                    input.parse::<Option<syn::Token![.]>>()?;
+                }
+            }
+            Some((ty, some))
+        } else {
+            None
+        };
 
         let parts = Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(input)?;
 
@@ -319,6 +420,15 @@ impl Parse for Optic {
 
         // Component part
         let component = build_component_optic(component_parts)?;
+
+        #[cfg(feature = "dynamic")]
+        if let Some((ty, _)) = _extension {
+            return Ok(Optic::Extension {
+                ty,
+                storage,
+                component,
+            });
+        }
 
         Ok(Optic::Access { storage, component })
     }

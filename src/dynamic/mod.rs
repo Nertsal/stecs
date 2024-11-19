@@ -1,4 +1,7 @@
-use crate::storage::{sparse::Sparse, Storage, StorageFamily};
+use crate::{
+    archetype::{Split, SplitFields},
+    storage::{sparse::Sparse, Storage, StorageFamily},
+};
 
 use std::{any::Any, marker::PhantomData};
 
@@ -50,6 +53,17 @@ impl<F: StorageFamily> DynamicStorage<F> {
         self.inner.get_mut::<InnerMap<F, T>>()?.remove(entity_id)
     }
 
+    /// Extend an entity with a dynamic bundle of components.
+    pub fn extension<T: SplitFields<F>>(&mut self, entity_id: F::Id, bundle: T)
+    where
+        T::Split: Any + Default,
+    {
+        self.inner
+            .entry::<T::Split>()
+            .or_default()
+            .insert(entity_id, bundle)
+    }
+
     /// Get a reference to a dynamic component from an entity.
     pub fn get<T>(&self, entity_id: F::Id) -> Option<&T>
     where
@@ -80,6 +94,22 @@ impl<F: StorageFamily> DynamicStorage<F> {
     {
         let inner = self.inner.entry::<InnerMap<F, T>>().or_default();
         ids.map(move |id| inner.get_mut(id).map(|r| unsafe { &mut *(r as *mut T) }))
+    }
+
+    /// Get a reference to an extension.
+    pub fn get_ext<T: SplitFields<F>>(&self) -> Option<&T::Split>
+    where
+        T::Split: Any,
+    {
+        self.inner.get::<T::Split>()
+    }
+
+    /// Get a mutable reference to an extension.
+    pub fn get_ext_mut<T: SplitFields<F>>(&mut self) -> Option<&mut T::Split>
+    where
+        T::Split: Any,
+    {
+        self.inner.get_mut::<T::Split>()
     }
 }
 
@@ -134,6 +164,17 @@ impl<F: StorageFamily> DynamicCloneStorage<F> {
         InnerMap<F, T>: CloneAny,
     {
         self.inner.get_mut::<InnerMap<F, T>>()?.remove(entity_id)
+    }
+
+    /// Extend an entity with a dynamic bundle of components.
+    pub fn extension<T: SplitFields<F>>(&mut self, entity_id: F::Id, bundle: T)
+    where
+        T::Split: CloneAny + Default,
+    {
+        self.inner
+            .entry::<T::Split>()
+            .or_default()
+            .insert(entity_id, bundle)
     }
 
     /// Get a reference to a dynamic component from an entity.
