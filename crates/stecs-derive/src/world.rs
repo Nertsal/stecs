@@ -9,7 +9,7 @@ use quote::{quote, ToTokens};
 #[derive(FromDeriveInput)]
 #[darling(supports(struct_named), attributes(world))]
 pub struct WorldOpts {
-    ident: syn::Ident,
+    // ident: syn::Ident,
     // vis: syn::Visibility,
     data: ast::Data<(), FieldOpts>,
     // generics: syn::Generics,
@@ -25,7 +25,7 @@ struct FieldOpts {
 }
 
 struct Struct {
-    name: syn::Ident,
+    // name: syn::Ident,
     // visibility: syn::Visibility,
     fields: Vec<Field>,
     // generics: syn::Generics,
@@ -68,7 +68,7 @@ impl TryFrom<WorldOpts> for Struct {
             })
             .collect::<Result<Vec<Field>, ParseError>>()?;
         Ok(Self {
-            name: value.ident,
+            // name: value.ident,
             // visibility: value.vis,
             fields,
             // generics: value.generics,
@@ -117,26 +117,6 @@ impl WorldOpts {
 
 impl Struct {
     fn derive(self) -> TokenStream {
-        let world = self.name;
-
-        // impl Default for World
-        let default = {
-            let fields = self.fields.iter().map(|field| {
-                let name = &field.name;
-                quote! { #name: ::std::default::Default::default(), }
-            });
-
-            quote! {
-                impl ::std::default::Default for #world {
-                    fn default() -> Self {
-                        Self {
-                            #(#fields)*
-                        }
-                    }
-                }
-            }
-        };
-
         let all_fields = self.fields.iter().map(|field| &field.name);
         let query_all = generate_query(quote! { query_all }, all_fields);
 
@@ -155,7 +135,6 @@ impl Struct {
         };
 
         quote! {
-            #default
             #query_all
             #(#query_groups)*
         }

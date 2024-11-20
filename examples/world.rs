@@ -1,6 +1,6 @@
 use stecs::prelude::*;
 
-#[derive(World)]
+#[derive(World, Default)]
 pub struct World {
     #[world(groups = ["actor"])]
     pub players: StructOf<Dense<Player>>,
