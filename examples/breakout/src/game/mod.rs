@@ -1,33 +1,74 @@
-use miniquad::{window, RenderingBackend};
+use crate::{logic, render};
 
-pub struct Stage {
-    ctx: Box<dyn RenderingBackend>,
-    last_time: f64,
-    world: crate::World,
+use macroquad::prelude::*;
+use stecs::prelude::*;
+
+#[derive(World, Default)]
+pub struct World {
+    pub resources: Resources,
+    pub bricks: StructOf<Dense<logic::Brick>>,
+    pub render_bricks: SplitOf<Dense<render::Brick>>,
 }
 
-impl Stage {
-    pub fn new() -> Self {
+pub struct Resources {
+    pub camera: Camera2D,
+    pub bounds: Rect,
+}
+
+impl Default for Resources {
+    fn default() -> Self {
+        const ASPECT: f32 = 16.0 / 9.0;
+        const VERT_FOV: f32 = 20.0;
         Self {
-            ctx: window::new_rendering_backend(),
-            last_time: 0.0,
-            world: crate::World::new(),
+            camera: Camera2D::from_display_rect(Rect::new(
+                -0.5 * VERT_FOV * ASPECT,
+                -0.5 * VERT_FOV,
+                VERT_FOV * ASPECT,
+                VERT_FOV,
+            )),
+            bounds: Rect::new(-15.0, -7.0, 30.0, 15.0),
         }
     }
 }
 
-impl miniquad::EventHandler for Stage {
-    fn update(&mut self) {
-        let time = miniquad::date::now();
-        let delta_time = time - self.last_time;
-        self.last_time = time;
-        self.world.update(delta_time);
+impl World {
+    pub fn new() -> Self {
+        let mut world = Self::default();
+        world.init();
+        world
     }
 
-    fn draw(&mut self) {
-        self.ctx.begin_default_pass(Default::default());
-        self.world.draw(&mut self.ctx);
-        self.ctx.end_render_pass();
-        self.ctx.commit_frame();
+    fn init(&mut self) {
+        const AMOUNT_X: usize = 10;
+        const AMOUNT_Y: usize = 5;
+        const WIDTH: f32 = 3.0;
+        const HEIGHT: f32 = 1.0;
+        for y in 0..AMOUNT_Y {
+            for x in 0..AMOUNT_X {
+                let size = vec2(WIDTH, HEIGHT);
+                let position =
+                    vec2(x as f32 - AMOUNT_X.saturating_sub(1) as f32 / 2.0, y as f32) * size;
+                let halfsize = size / 2.0;
+
+                let brick = self.bricks.insert(logic::Brick { position, halfsize });
+
+                let color = Color::new(
+                    macroquad::rand::gen_range(0.4, 0.6),
+                    macroquad::rand::gen_range(0.4, 0.6),
+                    macroquad::rand::gen_range(0.4, 0.6),
+                    1.0,
+                );
+                self.render_bricks.insert(brick, render::Brick { color });
+            }
+        }
+    }
+
+    pub async fn run(mut self) {
+        loop {
+            self.update(get_frame_time());
+            clear_background(Color::new(0.0, 0.0, 0.0, 1.0));
+            self.draw();
+            next_frame().await
+        }
     }
 }

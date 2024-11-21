@@ -1,16 +1,26 @@
-use stecs::prelude::*;
+use crate::game::World;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Vec2<T = f32> {
-    pub x: T,
-    pub y: T,
-}
+use macroquad::math::Vec2;
+use stecs::prelude::*;
 
 #[derive(SplitFields)]
 pub struct Brick {
-    pub size: Vec2,
+    pub position: Vec2,
+    pub halfsize: Vec2,
 }
 
-impl crate::World {
-    pub fn update(&mut self, delta_time: f64) {}
+#[derive(SplitFields)]
+pub struct Ball {
+    pub position: Vec2,
+    pub radius: Vec2,
+}
+
+#[derive(SplitFields)]
+pub struct Player {
+    pub position: Vec2,
+    pub halfsize: Vec2,
+}
+
+impl World {
+    pub fn update(&mut self, delta_time: f32) {}
 }
