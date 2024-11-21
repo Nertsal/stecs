@@ -9,6 +9,11 @@ pub enum Optic {
         ty: syn::Type,
         component: OpticComponent,
     },
+    Foreign {
+        foreign: syn::Expr,
+        storage: OpticStorage,
+        component: OpticComponent,
+    },
     GetId,
     Access {
         storage: OpticStorage,
@@ -86,6 +91,33 @@ impl Optic {
                 }
             }
             Optic::GetId => id,
+            Optic::Foreign {
+                foreign,
+                storage,
+                component,
+            } => {
+                let storage = storage.access(quote! { #foreign });
+
+                let getter = if is_mut {
+                    quote! { get_mut }
+                } else {
+                    quote! { get }
+                };
+
+                if component.is_identity() {
+                    quote! { #storage.#getter(#id) }
+                } else {
+                    let value_name = quote! { __value };
+                    let access =
+                        component.access_impl(Access::borrow(is_mut), quote! { #value_name });
+                    quote! {
+                        match #storage.#getter(#id) {
+                            None => None,
+                            Some(#value_name) => { Some(#access) }
+                        }
+                    }
+                }
+            }
             Optic::Access { storage, component } => {
                 let storage = storage.access(quote! { #archetype.inner });
 
@@ -130,6 +162,25 @@ impl Optic {
                 }
             }
             Optic::GetId => ids,
+            Optic::Foreign {
+                foreign,
+                storage,
+                component,
+            } => {
+                let storage = storage.access(quote! { #foreign });
+
+                let value_name = quote! { __value };
+                let access = if component.is_identity() {
+                    quote! {}
+                } else {
+                    let access = component.access_impl(Access::BorrowMut, quote! { #value_name });
+                    quote! { .map(|#value_name| #access) }
+                };
+
+                quote! {
+                    unsafe { #storage.get_many_unchecked_mut(#ids) } #access
+                }
+            }
             Optic::Access { storage, component } => {
                 let storage = storage.access(quote! { #archetype.inner });
 
@@ -223,6 +274,7 @@ enum OpticPart {
 
 impl Parse for Optic {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        // dyn
         if let Some(_dyn) = input.parse::<Option<syn::Token![dyn]>>()? {
             #[cfg(not(feature = "dynamic"))]
             {
@@ -250,6 +302,19 @@ impl Parse for Optic {
                 return Ok(Optic::Dynamic { ty, component });
             }
         }
+
+        // foreign
+        let foreign = if let Some(foreign) = input.fork().parse::<Option<syn::Ident>>()? {
+            if foreign == "foreign" {
+                input.parse::<syn::Ident>()?;
+                let foreign = input.parse::<syn::Expr>()?;
+                Some(foreign)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         let parts = Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(input)?;
 
@@ -319,6 +384,14 @@ impl Parse for Optic {
 
         // Component part
         let component = build_component_optic(component_parts)?;
+
+        if let Some(foreign) = foreign {
+            return Ok(Optic::Foreign {
+                foreign,
+                storage,
+                component,
+            });
+        }
 
         Ok(Optic::Access { storage, component })
     }

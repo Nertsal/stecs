@@ -42,6 +42,12 @@ impl StorageGetOpts {
                         #get_fields
                     }
                 },
+                Optic::Foreign { .. } => quote! {
+                    {
+                        let #name = #access;
+                        #get_fields
+                    }
+                },
                 Optic::Access { component, .. } => {
                     if component.is_prism() {
                         // Option<Option<T>>

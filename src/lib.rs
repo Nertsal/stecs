@@ -291,7 +291,7 @@ pub mod prelude {
     };
 
     pub use crate::{
-        archetype::{Archetype, StructOf},
+        archetype::{Archetype, SplitOf, StructOf},
         get, query,
         storage::{IdGenerator, Storage},
         SplitFields, World,

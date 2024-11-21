@@ -27,11 +27,17 @@ pub trait Split<F: StorageFamily> {
     fn remove(&mut self, id: F::Id) -> Option<Self::Item>;
 }
 
-/// A type synonym for a specific implementor of [Archetype] for convenient usage in type definitions.
+/// A type synonym for a specific implementor of [`Archetype`] for convenient usage in type definitions.
 ///
 /// For example, `StructOf<Vec<Unit>>` would turn into `UnitStructOf<VecFamily>`.
 pub type StructOf<S> =
     <<S as StructOfAble>::Struct as SplitFields<<S as StructOfAble>::Family>>::StructOf;
+
+/// A type synonym for a specific implementor of [`Split`] for convenient usage in type definitions.
+///
+/// For example, `SplitOf<Vec<Unit>>` would turn into `UnitSplit<VecFamily>`.
+pub type SplitOf<S> =
+    <<S as StructOfAble>::Struct as SplitFields<<S as StructOfAble>::Family>>::Split;
 
 /// Implemented for "T's of structs" to convert into "structs of T's" (e.g. AoS to SoA).
 pub trait StructOfAble {

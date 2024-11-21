@@ -16,7 +16,7 @@ query_mut = ["stecs-derive/query_mut"]
 dynamic = ["stecs-derive/dynamic", "dep:anymap3"]
 
 [workspace]
-members = ["crates/*"]
+members = ["crates/*", "examples/breakout"]
 
 [dependencies]
 stecs-derive = { path = "crates/stecs-derive", version = "0.1.0" }

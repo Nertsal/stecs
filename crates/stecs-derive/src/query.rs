@@ -98,11 +98,10 @@ impl QueryOpts {
                     }
                 } else {
                     let component = optic.access(id_expr.clone(), quote! { #storage });
-                    #[cfg(not(feature = "dynamic"))]
-                    let dynamic = false;
+                    let optional = matches!(optic, Optic::Foreign { .. });
                     #[cfg(feature = "dynamic")]
-                    let dynamic = matches!(optic, Optic::Dynamic { .. });
-                    if dynamic {
+                    let optional = optional || matches!(optic, Optic::Dynamic { .. });
+                    if optional {
                         quote! {
                             let #name = #ids_expr.map(|#id_expr| {
                                 #component
@@ -147,15 +146,18 @@ impl QueryOpts {
             let filtered = fields
                 .iter()
                 .map(|(name, _, optic)| {
+                    let one = |f| if f { 1 } else { 0 };
                     let optional = match optic {
                         #[cfg(feature = "dynamic")]
-                        Optic::Dynamic { component, .. } => component.is_prism(),
-                        Optic::GetId => false,
-                        Optic::Access { component, .. } => component.is_prism(),
+                        Optic::Dynamic { component, .. } => one(component.is_prism()),
+                        Optic::GetId => 0,
+                        Optic::Foreign { component, .. } => 1 + one(component.is_prism()),
+                        Optic::Access { component, .. } => one(component.is_prism()),
                     };
-                    if optional {
+                    if optional > 0 {
                         let name = &name.mangled;
-                        quote! { let #name = #name?; }
+                        let q: TokenStream = "?".repeat(optional).parse().unwrap();
+                        quote! { let #name = #name #q; }
                     } else {
                         quote! {}
                     }

@@ -15,10 +15,20 @@
           inherit system overlays;
         };
         libDeps = with pkgs; [
-            # cmake
-            # fontconfig
-            # mesa
-            # freeglut
+          libxkbcommon
+          wayland
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXi
+          xorg.libXrandr
+          xorg.libxcb
+          alsa-lib
+          udev
+          libGL
+          # cmake
+          # fontconfig
+          # mesa
+          # freeglut
         ];
         libPath = pkgs.lib.makeLibraryPath libDeps;
       in

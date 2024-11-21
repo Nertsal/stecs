@@ -35,6 +35,7 @@ struct Field {
     name: syn::Ident,
     // ty: syn::Type,
     groups: Vec<syn::LitStr>,
+    foreign: Option<syn::Ident>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -43,8 +44,8 @@ enum ParseError {
     NotAStruct,
     #[error("field has no name")]
     NamelessField,
-    #[error("`groups` attribute accepts only a list of string literals: {0}")]
-    InvalidGroups(syn::Error),
+    #[error("there may only be one `foreign` attribute per field")]
+    TooManyForeign,
 }
 
 impl TryFrom<WorldOpts> for Struct {
@@ -64,6 +65,7 @@ impl TryFrom<WorldOpts> for Struct {
                     name,
                     // ty: field.ty
                     groups: extract_groups(&field.attrs)?,
+                    foreign: extract_foreign(&field.attrs)?,
                 })
             })
             .collect::<Result<Vec<Field>, ParseError>>()?;
@@ -82,7 +84,7 @@ impl syn::parse::Parse for Groups {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let ident: syn::Ident = input.parse()?;
         if ident != "groups" {
-            return Err(syn::Error::new_spanned(ident, "unexpected field"));
+            return Err(syn::Error::new_spanned(ident, "expected `groups`"));
         }
 
         input.parse::<syn::Token![=]>()?;
@@ -100,10 +102,39 @@ impl syn::parse::Parse for Groups {
 fn extract_groups(attrs: &[syn::Attribute]) -> Result<Vec<syn::LitStr>, ParseError> {
     let mut result = Vec::new();
     for attr in attrs {
-        let groups = attr
-            .parse_args::<Groups>()
-            .map_err(ParseError::InvalidGroups)?;
-        result.extend(groups.0.into_iter());
+        if let Ok(groups) = attr.parse_args::<Groups>() {
+            result.extend(groups.0.into_iter());
+        }
+    }
+    Ok(result)
+}
+
+struct Foreign(syn::Ident);
+
+impl syn::parse::Parse for Foreign {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let ident: syn::Ident = input.parse()?;
+        if ident != "foreign" {
+            return Err(syn::Error::new_spanned(ident, "expected `foreign`"));
+        }
+
+        input.parse::<syn::Token![=]>()?;
+
+        let foreign = input.parse()?;
+
+        Ok(Self(foreign))
+    }
+}
+
+fn extract_foreign(attrs: &[syn::Attribute]) -> Result<Option<syn::Ident>, ParseError> {
+    let mut result = None;
+    for attr in attrs {
+        if let Ok(foreign) = attr.parse_args::<Foreign>() {
+            if result.is_some() {
+                return Err(ParseError::TooManyForeign);
+            }
+            result = Some(foreign.0);
+        }
     }
     Ok(result)
 }
@@ -134,9 +165,33 @@ impl Struct {
             })
         };
 
+        let query_foreign = {
+            let mut foreign: HashMap<&syn::Ident, Vec<&syn::Ident>> = HashMap::new();
+            for field in &self.fields {
+                if let Some(group) = &field.foreign {
+                    foreign.entry(group).or_default().push(&field.name);
+                }
+            }
+            foreign.into_iter().map(|(archetype, foreign)| {
+                let name = syn::Ident::new(
+                    &format!("query_foreign_{}", archetype),
+                    proc_macro2::Span::call_site(),
+                );
+                Some(quote! {
+                    #[macro_export]
+                    macro_rules! #name {
+                        ($world:expr, $args:tt) => {
+                            query_foreign!($world.#archetype, [#($world,#foreign),*], $args)
+                        }
+                    }
+                })
+            })
+        };
+
         quote! {
             #query_all
             #(#query_groups)*
+            #(#query_foreign)*
         }
     }
 }
@@ -152,6 +207,7 @@ fn generate_query(
 ) -> TokenStream {
     let fields = fields.into_iter().map(|field| quote! { $world.#field });
     quote! {
+        #[macro_export]
         macro_rules! #name {
             ($world:expr, $args:tt) => {
                 query!([#(#fields),*], $args)
