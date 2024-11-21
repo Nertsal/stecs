@@ -19,15 +19,21 @@ pub struct QueryOpts {
 
 impl Parse for QueryOpts {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let _span_start = input.span();
+        let span_start = input.span();
 
         let struct_ofs = if input.peek(syn::token::Bracket) {
             // Parse an array of struct_of's
             // [a, b, c]
             let list;
-            syn::bracketed!(list in input);
+            let brackets = syn::bracketed!(list in input);
             let items =
                 syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated(&list)?;
+            if items.is_empty() {
+                return Err(syn::Error::new(
+                    brackets.span.join(),
+                    "Expected at least one item to query from",
+                ));
+            }
             items.into_iter().collect()
         } else {
             // Parse a single struct_of
@@ -35,13 +41,25 @@ impl Parse for QueryOpts {
             vec![struct_of]
         };
 
-        if struct_ofs.is_empty() {
-            panic!("Expected at least one item to query from");
-        }
-
         let _: syn::Token![,] = input.parse()?;
 
         let image: ImageOpts = input.parse()?;
+
+        let foreign = match &image {
+            ImageOpts::Struct { fields, .. } => fields
+                .iter()
+                .any(|field| matches!(field.optic, Optic::Foreign { .. })),
+            ImageOpts::Tuple { fields } => fields
+                .iter()
+                .any(|field| matches!(field.optic, Optic::Foreign { .. })),
+        };
+        if foreign && struct_ofs.len() > 1 {
+            let span = span_start.join(input.span()).unwrap_or(input.span());
+            return Err(syn::Error::new(
+                span,
+                "`foreign` optics cannot be used with multiple archetypes",
+            ));
+        }
 
         #[cfg(not(feature = "query_mut"))]
         {
@@ -52,7 +70,7 @@ impl Parse for QueryOpts {
             };
             if is_mut {
                 // NOTE: sometimes in doc tests the `join` fails
-                let span = _span_start.join(input.span()).unwrap_or(input.span());
+                let span = span_start.join(input.span()).unwrap_or(input.span());
                 return Err(syn::Error::new(
                     span,
                     "enable the `query_mut` feature flag to allow mutable queries",
