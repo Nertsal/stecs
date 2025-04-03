@@ -1,7 +1,14 @@
+[workspace]
+members = ["stecs-derive"]
+
+[workspace.package]
+version = "0.1.2"
+edition = "2021"
+
 [package]
 name = "stecs"
-version = "0.1.1"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 license = "MIT"
 authors = ["Nertsal <nestralnertsal@gmail.com>"]
 description = "Experimental static compiler-checked ECS library"
@@ -15,9 +22,6 @@ default = ["arena", "query_mut"]
 query_mut = ["stecs-derive/query_mut"]
 hashstorage = []
 arena = ["dep:slotmap"]
-
-[workspace]
-members = ["stecs-derive"]
 
 [dependencies]
 stecs-derive = { path = "stecs-derive", version = "0.1.0" }
