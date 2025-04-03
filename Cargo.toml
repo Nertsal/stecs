@@ -1,7 +1,14 @@
+[workspace]
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.2"
+edition = "2021"
+
 [package]
 name = "stecs"
-version = "0.1.1"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 license = "MIT"
 authors = ["Nertsal <nestralnertsal@gmail.com>"]
 description = "Experimental static compiler-checked ECS library"
@@ -16,9 +23,6 @@ query_mut = ["stecs-derive/query_mut"]
 hashstorage = []
 arena = ["dep:slotmap"]
 dynamic = ["stecs-derive/dynamic", "dep:anymap3"]
-
-[workspace]
-members = ["crates/*"]
 
 [dependencies]
 stecs-derive = { path = "crates/stecs-derive", version = "0.1.0" }
