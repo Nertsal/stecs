@@ -60,7 +60,7 @@ fn main() {
 
 ### [zero_ecs](https://crates.io/crates/zero_ecs)
 
-`zero_ecs` looks more like `stecs`, but the World type is generated with a build script, and systems are very similar to `bevy_ecs`. Archetypes are not exactly static, but are just component bundles.
+`zero_ecs` looks more like a traditional ECS in terms of its API. Like with `gecs`, archetypes are static and defined by the user. Unlike the other libraries, `zero_ecs` uses a build script to generate the world type.
 
 ### Similar to some parts of this library:
 Struct of Array derive:
