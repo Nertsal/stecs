@@ -1,8 +1,8 @@
 use crate::optic::Optic;
 
-use darling::export::syn::{self, punctuated::Punctuated};
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::punctuated::Punctuated;
 
 #[derive(Debug)]
 pub struct StorageGetOpts {

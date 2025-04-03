@@ -1,6 +1,6 @@
-use darling::export::syn::{self, parse::Parse, punctuated::Punctuated};
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::{parse::Parse, punctuated::Punctuated};
 
 #[derive(Debug, Clone)]
 pub enum Optic {

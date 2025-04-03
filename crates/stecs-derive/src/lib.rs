@@ -1,7 +1,5 @@
-use darling::{
-    export::syn::{self, parse_macro_input},
-    FromDeriveInput,
-};
+use darling::FromDeriveInput;
+use syn::parse_macro_input;
 
 mod get;
 mod optic;

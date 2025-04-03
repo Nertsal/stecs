@@ -1,11 +1,8 @@
 use crate::{get::ImageOpts, optic::Optic};
 
-use darling::export::syn::{
-    self,
-    parse::{Parse, ParseStream},
-};
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::parse::{Parse, ParseStream};
 
 #[derive(Debug)]
 pub struct QueryOpts {

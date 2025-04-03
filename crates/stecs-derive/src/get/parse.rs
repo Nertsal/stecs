@@ -2,8 +2,8 @@ use super::types::*;
 
 use crate::optic::{Optic, OpticComponent, OpticStorage};
 
-use darling::export::syn::{
-    self, braced, parenthesized,
+use syn::{
+    braced, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
 };
