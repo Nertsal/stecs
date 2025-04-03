@@ -1,5 +1,3 @@
-use crate::syn;
-
 use darling::{ast, FromDeriveInput, FromField};
 use proc_macro2::TokenStream;
 use quote::{quote, TokenStreamExt};
