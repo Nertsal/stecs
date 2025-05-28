@@ -1,7 +1,8 @@
+use slotmap::SlotMap;
 use stecs::prelude::*;
 
 struct World {
-    blocks: StructOf<Vec<Block>>,
+    blocks: StructOf<SlotMap<slotmap::DefaultKey, Block>>,
 }
 
 #[derive(SplitFields)]
@@ -46,7 +47,7 @@ fn main() {
 
     // Iterate over a storage
     println!("height += 1");
-    for x in world.blocks.height.iter_mut() {
+    for (_, x) in world.blocks.height.iter_mut() {
         *x += 1;
     }
 

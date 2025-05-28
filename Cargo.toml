@@ -18,10 +18,9 @@ homepage = "https://github.com/Nertsal/stecs"
 repository = "https://github.com/Nertsal/stecs"
 
 [features]
-default = ["arena", "query_mut"]
+default = ["slotmap", "query_mut"]
 query_mut = ["stecs-derive/query_mut"]
-hashstorage = []
-arena = ["dep:slotmap"]
+slotmap = ["dep:slotmap"]
 
 [dependencies]
 stecs-derive = { path = "stecs-derive", version = "0.1.0" }
@@ -36,28 +35,28 @@ all-features = true
 [[bench]]
 name = "pos_vel"
 harness = false
-required-features = ["query_mut"]
+required-features = ["slotmap", "query_mut"]
 [[bench]]
 name = "simple"
 harness = false
-required-features = ["query_mut"]
+required-features = ["slotmap", "query_mut"]
 
 [[example]]
 name = "full"
 doc-scrape-examples = true
-required-features = ["query_mut"]
+required-features = ["slotmap", "query_mut"]
 
 [[example]]
 name = "blogpost"
 doc-scrape-examples = true
-required-features = ["arena", "query_mut"]
+required-features = ["slotmap", "query_mut"]
 
 [[example]]
 name = "mutations"
 doc-scrape-examples = true
-required-features = ["query_mut"]
+required-features = ["slotmap", "query_mut"]
 
 [[example]]
 name = "generics"
 doc-scrape-examples = true
-required-features = []
+required-features = ["slotmap"]

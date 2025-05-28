@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use slotmap::SlotMap;
 use stecs::prelude::*;
 
 /// Entities with velocity and position component.
@@ -26,7 +27,7 @@ struct Unit {
 }
 
 struct World {
-    units: StructOf<Vec<Unit>>,
+    units: StructOf<SlotMap<slotmap::DefaultKey, Unit>>,
 }
 
 fn build() -> World {
@@ -90,7 +91,7 @@ fn manual_process(world: &mut World) {
         .position
         .iter_mut()
         .zip(world.units.velocity.iter());
-    for (position, velocity) in query {
+    for ((_, position), (_, velocity)) in query {
         if let Some(velocity) = velocity {
             position.x += velocity.dx;
             position.y += velocity.dy;

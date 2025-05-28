@@ -342,7 +342,7 @@ The given `ids` must not repeat and must be valid and present id's in the storag
 
         quote! {
             impl<#generics_family> #struct_of_name<#generics_family_use> {
-                pub fn new(&self) -> Self {
+                pub fn new() -> Self {
                     Self::default()
                 }
 

@@ -1,11 +1,6 @@
 /// Arena storage.
-#[cfg(feature = "arena")]
-pub mod arena;
-/// Hash storage.
-#[cfg(feature = "hashstorage")]
-pub mod hashstorage;
-/// Vec storage.
-pub mod vec;
+#[cfg(feature = "slotmap")]
+pub mod slotmap;
 
 /// A storage of components.
 ///

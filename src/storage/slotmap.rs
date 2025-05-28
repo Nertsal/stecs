@@ -3,10 +3,7 @@ use crate::{
     storage::{Storage, StorageFamily},
 };
 
-pub use slotmap::{self, DefaultKey as ArenaId, SlotMap};
-
-/// Type alias for a [`SlotMap`] storage with a default key.
-pub type Arena<T> = SlotMap<ArenaId, T>;
+pub use slotmap::{self, SlotMap};
 
 /// Family of [`SlotMap<K, V>`] storages.
 pub struct SlotMapFamily<K: slotmap::Key>(std::marker::PhantomData<K>);

@@ -1,11 +1,13 @@
 #![allow(dead_code)]
 use stecs::prelude::*;
 
+type Arena<T> = slotmap::SlotMap<slotmap::DefaultKey, T>;
+
 #[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {
-    units: StructOf<Vec<Unit>>,         // UnitStructOf<VecFamily>,
-    corpses: StructOf<Vec<Corpse>>,     // CorpseStructOf<VecFamily>,
-    particles: StructOf<Vec<Particle>>, // ParticleStructOf<VecFamily>,
+    units: StructOf<Arena<Unit>>,         // UnitStructOf<VecFamily>,
+    corpses: StructOf<Arena<Corpse>>,     // CorpseStructOf<VecFamily>,
+    particles: StructOf<Arena<Particle>>, // ParticleStructOf<VecFamily>,
 }
 
 #[derive(SplitFields, Debug)]
@@ -92,7 +94,7 @@ fn main() {
         // Declare a view struct to query into
         #[derive(Debug)]
         struct UnitRef<'a> {
-            id: usize,
+            id: slotmap::DefaultKey,
             pos: &'a (f32, f32),
             damage: &'a f32,
         }

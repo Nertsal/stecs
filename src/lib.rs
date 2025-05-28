@@ -276,6 +276,9 @@ pub mod archetype;
 /// The [`Storage`](storage::Storage) trait and basic implementors.
 pub mod storage;
 
+#[cfg(test)]
+mod tests;
+
 /// use `stecs::prelude::*;` to import all necessary traits, types, and macros.
 pub mod prelude {
     pub use crate::{

@@ -1,7 +1,8 @@
+use slotmap::SlotMap;
 use stecs::prelude::*;
 
 struct World<'a> {
-    units: StructOf<Vec<Unit<'a>>>,
+    units: StructOf<SlotMap<slotmap::DefaultKey, Unit<'a>>>,
 }
 
 #[derive(SplitFields)]
@@ -20,12 +21,12 @@ struct Unit<'a> {
 }
 
 fn main() {
+    let unit_name1 = String::from("Alfred");
+    let unit_name2 = String::from("Olivia");
+
     let mut world = World {
         units: Default::default(),
     };
-
-    let unit_name1 = String::from("Alfred");
-    let unit_name2 = String::from("Olivia");
 
     world.units.insert(Unit {
         position: Position { x: 1.0, y: 5.0 },

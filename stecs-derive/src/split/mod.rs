@@ -97,6 +97,11 @@ struct GenericUsage {
 impl Struct {
     pub fn derive(self) -> TokenStream {
         // Validation
+        if self.fields.is_empty() {
+            panic!(
+                "expected at least one field: cannot generate an archetype from an empty struct"
+            );
+        }
         if self.fields.iter().any(|field| field.name == "id") {
             panic!(
                 "`id` is not allowed to be a field name, as it is used as a keyword inside queries"
