@@ -21,6 +21,7 @@ repository = "https://github.com/Nertsal/stecs"
 default = ["slotmap", "query_mut"]
 query_mut = ["stecs-derive/query_mut"]
 slotmap = ["dep:slotmap"]
+zero_vec = []
 
 [dependencies]
 stecs-derive = { path = "stecs-derive", version = "0.1.0" }

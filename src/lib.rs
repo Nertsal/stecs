@@ -20,7 +20,7 @@
 //! See the [GitHub repository](https://github.com/Nertsal/stecs/) for more examples.
 //!
 //! ```
-//! # use stecs::prelude::*;
+//! # use stecs::{prelude::*, storage::zero_vec::ZeroVec};
 //! #[derive(SplitFields)]
 //! struct Player {
 //!     position: f64,
@@ -28,7 +28,7 @@
 //! }
 //!
 //! struct World {
-//!     players: StructOf<Vec<Player>>,
+//!     players: StructOf<ZeroVec<Player>>,
 //! }
 //!
 //! let mut world = World { players: Default::default() };
@@ -60,7 +60,7 @@
 //! }
 //! ```
 //!
-//! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, Vec).
+//! The main thing [`SplitFields`] macro generates is an analogous struct where each field is inside an abstract [`Storage`](storage::Storage) (for example, ZeroVec).
 //!
 //! ```
 //! # use stecs::prelude::*;
@@ -84,10 +84,10 @@
 //! The target view can be either a tuple or a struct (user-defined) with regular instantiation syntax, except for value expressions, which use optics.
 //!
 //! ```
-//! # use stecs::prelude::*;
+//! # use stecs::{prelude::*, storage::zero_vec::{ZeroVec, ZeroVecId}};
 //! #
 //! # struct World {
-//! #     units: StructOf<Vec<Unit>>,
+//! #     units: StructOf<ZeroVec<Unit>>,
 //! # }
 //! #
 //! # #[derive(SplitFields)]
@@ -99,7 +99,7 @@
 //! # let mut world = World { units: Default::default() };
 //! #
 //! # struct TargetView<'a> {
-//! #     id: usize,
+//! #     id: ZeroVecId,
 //! #     position: &'a mut f64,
 //! #     velocity: &'a f64,
 //! # }
@@ -185,10 +185,10 @@ pub use stecs_derive::SplitFields;
 /// # Example
 ///
 /// ```
-/// # use stecs::prelude::*;
+/// # use stecs::{prelude::*, storage::zero_vec::ZeroVec};
 /// #  
 /// # struct World {
-/// #     units: StructOf<Vec<Unit>>,
+/// #     units: StructOf<ZeroVec<Unit>>,
 /// # }
 /// #
 /// # #[derive(SplitFields)]
@@ -204,7 +204,7 @@ pub use stecs_derive::SplitFields;
 /// #     damage: &'a i64,
 /// # }
 /// #
-/// # let id = 0;
+/// # let id = world.units.insert(Unit { position: 0.0, damage: None });
 /// #
 /// get!(world.units, id, (&position, &mut damage.Get.Some));
 ///
@@ -227,10 +227,10 @@ pub use stecs_derive::storage_get as get;
 /// # Example
 ///
 /// ```
-/// # use stecs::prelude::*;
+/// # use stecs::{prelude::*, storage::zero_vec::ZeroVec};
 /// #  
 /// # struct World {
-/// #     units: StructOf<Vec<Unit>>,
+/// #     units: StructOf<ZeroVec<Unit>>,
 /// # }
 /// #
 /// # #[derive(SplitFields)]

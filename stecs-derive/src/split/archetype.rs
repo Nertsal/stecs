@@ -180,6 +180,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
 
         let insert_doc =
             format!(r#"Insert a new entity of type [`{struct_name}`], returning its id."#);
+        let remove_doc = format!(r#"Remove entity with the give id, returning [`{struct_name}`]."#);
 
         let iter_doc = format!(
             r#"Iterate over all components of this archetype, i.e. over [`{struct_ref_name}`]"#
@@ -221,6 +222,15 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     let id = self.ids.spawn();
                     self.inner.insert(id, value);
                     id
+                }
+
+                #[doc = #remove_doc]
+                pub fn remove(&mut self, id: #generic_family_name::Id) -> Option<#struct_name<#generics_use>> {
+                    use #crate_name::{archetype::Split, storage::IdGenerator};
+                    if !self.ids.remove(id) {
+                        return None;
+                    }
+                    self.inner.remove(id)
                 }
 
                 #[doc = #get_doc]
@@ -277,12 +287,11 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     use #crate_name::storage::IdGenerator;
                     self.ids.ids()
                 }
+                fn insert(&mut self, item: Self::Item) -> #generic_family_name::Id {
+                    self.insert(item)
+                }
                 fn remove(&mut self, id: #generic_family_name::Id) -> Option<Self::Item> {
-                    use #crate_name::{archetype::Split, storage::IdGenerator};
-                    if !self.ids.remove(id) {
-                        return None;
-                    }
-                    self.inner.remove(id)
+                    self.remove(id)
                 }
             }
         }

@@ -10,8 +10,10 @@ pub trait Archetype<F: StorageFamily>: Default {
     type Item;
     /// The inner collection of split components.
     type Split: Split<F>;
-    /// Return id's of all active entities.
+    /// Returns id's of all active entities.
     fn ids(&self) -> impl Iterator<Item = F::Id>;
+    /// Insert a new entity.
+    fn insert(&mut self, value: Self::Item) -> F::Id;
     /// Remove an entity with a given id.
     fn remove(&mut self, id: F::Id) -> Option<Self::Item>;
 }

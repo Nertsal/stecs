@@ -1,6 +1,8 @@
 /// SlotMap storage.
 #[cfg(feature = "slotmap")]
 pub mod slotmap;
+#[cfg(feature = "zero_vec")]
+pub mod zero_vec;
 
 /// A storage of components.
 pub trait Storage<T>: Default {
