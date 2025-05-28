@@ -6,6 +6,12 @@ mod optic;
 mod query;
 mod split;
 
+const CRATE_NAME: &str = "stecs";
+
+fn crate_name() -> syn::Ident {
+    syn::Ident::new(CRATE_NAME, proc_macro2::Span::call_site())
+}
+
 #[proc_macro_derive(SplitFields, attributes(split))]
 pub fn derive_split_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: syn::DeriveInput = syn::parse_macro_input!(input);
