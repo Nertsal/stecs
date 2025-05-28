@@ -32,61 +32,69 @@ pub enum OpticComponent {
 
 impl Optic {
     /// Access the target component immutably.
-    pub fn access(&self, id: TokenStream, archetype: TokenStream) -> TokenStream {
-        self.access_impl(false, id, archetype)
+    pub fn access(&self, checked: bool, id: &TokenStream, archetype: &TokenStream) -> TokenStream {
+        self.access_impl(false, checked, id, archetype)
     }
 
     /// Access the target component mutably.
-    pub fn access_mut(&self, id: TokenStream, archetype: TokenStream) -> TokenStream {
-        self.access_impl(true, id, archetype)
+    pub fn access_mut(
+        &self,
+        checked: bool,
+        id: &TokenStream,
+        archetype: &TokenStream,
+    ) -> TokenStream {
+        self.access_impl(true, checked, id, archetype)
     }
 
-    fn access_impl(&self, is_mut: bool, id: TokenStream, archetype: TokenStream) -> TokenStream {
+    fn access_impl(
+        &self,
+        is_mut: bool,
+        checked: bool,
+        id: &TokenStream,
+        archetype: &TokenStream,
+    ) -> TokenStream {
         match self {
-            Optic::GetId => id,
+            Optic::GetId => quote! { #id },
             Optic::Access { storage, component } => {
                 let storage = storage.access(archetype);
 
                 let getter = if is_mut {
-                    quote! { get_mut }
-                } else {
+                    if checked {
+                        quote! { get_mut }
+                    } else {
+                        quote! { get_unchecked_mut }
+                    }
+                } else if checked {
                     quote! { get }
+                } else {
+                    quote! { get_unchecked }
                 };
 
+                let mut get = quote! { #storage.#getter(#id) };
+                if !checked {
+                    get = quote! { unsafe { #get } };
+                }
+
                 if component.is_identity() {
-                    quote! { #storage.#getter(#id) }
+                    get
                 } else {
                     let value_name = quote! { __value };
                     let access = component.access_impl(is_mut, quote! { #value_name });
-                    quote! {
-                        match #storage.#getter(#id) {
-                            None => None,
-                            Some(#value_name) => { Some(#access) }
+                    if checked {
+                        quote! {
+                            match #get {
+                                None => None,
+                                Some(#value_name) => { #access }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            {
+                                let #value_name = #get;
+                                #access
+                            }
                         }
                     }
-                }
-            }
-        }
-    }
-
-    /// Access many entities (identified by `ids`) mutably.
-    #[cfg(feature = "query_mut")]
-    pub fn access_many_mut(&self, ids: TokenStream, archetype: TokenStream) -> TokenStream {
-        match self {
-            Optic::GetId => ids,
-            Optic::Access { storage, component } => {
-                let storage = storage.access(archetype);
-
-                let value_name = quote! { __value };
-                let access = if component.is_identity() {
-                    quote! {}
-                } else {
-                    let access = component.access_impl(true, quote! { #value_name });
-                    quote! { .map(|#value_name| #access) }
-                };
-
-                quote! {
-                    unsafe { #storage.get_many_unchecked_mut(#ids) } #access
                 }
             }
         }
@@ -94,10 +102,10 @@ impl Optic {
 }
 
 impl OpticStorage {
-    pub fn access(&self, archetype: TokenStream) -> TokenStream {
+    pub fn access(&self, archetype: &TokenStream) -> TokenStream {
         match self {
-            OpticStorage::Identity => archetype,
-            OpticStorage::Field { name, optic } => optic.access(quote! { #archetype.#name }),
+            OpticStorage::Identity => quote! { #archetype },
+            OpticStorage::Field { name, optic } => optic.access(&quote! { #archetype.#name }),
         }
     }
 }
@@ -129,24 +137,28 @@ impl OpticComponent {
                 optic.access_impl(is_mut, quote! { #entity.#name })
             }
             OpticComponent::Some(optic) => {
-                let value_name = quote! { __value };
-                let tail = optic.access_impl(is_mut, quote! { #value_name });
-                let tail = if optic.is_prism() {
-                    tail
-                } else {
-                    quote! { Some(#tail) }
-                };
-
                 let convert = if is_mut {
                     quote! { as_mut() }
                 } else {
                     quote! { as_ref() }
                 };
 
-                quote! {
-                    match #entity.#convert {
-                        None => None,
-                        Some(#value_name) => { #tail }
+                if optic.is_identity() {
+                    quote! { #entity.#convert }
+                } else {
+                    let value_name = quote! { __value };
+                    let tail = optic.access_impl(is_mut, quote! { #value_name });
+                    let tail = if optic.is_prism() {
+                        tail
+                    } else {
+                        quote! { Some(#tail) }
+                    };
+
+                    quote! {
+                        match #entity.#convert {
+                            None => None,
+                            Some(#value_name) => { #tail }
+                        }
                     }
                 }
             }

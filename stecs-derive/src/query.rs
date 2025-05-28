@@ -68,101 +68,72 @@ impl QueryOpts {
             return quote! { ::std::iter::empty() };
         }
 
+        let crate_name = crate::crate_name();
+
         let mut result = vec![];
         for storage in &self.struct_ofs {
-            let mut query = vec![];
+            let ids_expr = quote! { #crate_name::storage::IdGenerator::ids(&#storage.ids) };
+            let id_name = syn::Ident::new("__ID", proc_macro2::Span::call_site());
+            let id_expr = quote! { #id_name };
+            let storage = quote! { #storage.inner };
 
-            // Get each field
-            let id_expr = quote! { __ID }; // NOTE: mangled to avoid conflicts
-            let ids_expr = quote! { #storage.ids.ids() };
-            query.extend(fields.iter().map(|(name, is_mut, optic)| {
+            // Get an entity by id
+            let mut get_by_id = vec![];
+            get_by_id.extend(fields.iter().map(|(name, is_mut, optic)| {
                 let name = &name.mangled;
-                if *is_mut {
-                    #[cfg(feature = "query_mut")]
-                    {
-                        let component =
-                            optic.access_many_mut(ids_expr.clone(), quote! { #storage });
-                        quote! { let #name = #component; }
-                    }
 
+                let optional = match optic {
+                    Optic::GetId => false,
+                    Optic::Access { component, .. } => component.is_prism(),
+                };
+                let filter = if optional {
+                    quote! { ? }
+                } else {
+                    quote! {}
+                };
+
+                if matches!(optic, Optic::GetId) {
+                    quote! { let #name = #id_name; }
+                } else if *is_mut {
                     #[cfg(not(feature = "query_mut"))]
                     panic!(
                         "The `query_mut` feature is disabled, so mutable queries are not supported"
                     );
-                } else if matches!(optic, Optic::GetId) {
-                    quote! {
-                        let #name = #ids_expr;
+
+                    #[cfg(feature = "query_mut")]
+                    {
+                        let component = optic.access_mut(false, &id_expr, &storage);
+
+                        quote! {
+                            let #name = #component #filter;
+                            let #name = unsafe { #crate_name::UpcastLifetime::upcast(#name) };
+                        }
+                        // let #name = unsafe { &mut *std::ptr::from_mut(#name) };
                     }
                 } else {
-                    let component = optic.access(id_expr.clone(), quote! { #storage });
-                    quote! {
-                        let #name = #ids_expr.map(|#id_expr| {
-                            let value = #component;
-                            value.expect("`id` must be valid")
-                        });
-                    }
+                    let component = optic.access(false, &id_expr, &storage);
+                    quote! { let #name = #component #filter; }
                 }
             }));
 
-            // Zip fields
-            query.push(quote! {});
-            let mut tail = fields.iter();
-            if let Some((name, _, _)) = tail.next() {
-                let name = &name.mangled;
-                query.push(quote! { #name });
-            }
-            query.extend(tail.map(|(name, _, _)| {
-                let name = &name.mangled;
-                quote! { .zip(#name) }
-            }));
-
-            // Construct args for map
-            let mut args = quote! {};
-            let mut tail = fields.iter();
-            if let Some((name, _, _)) = tail.next() {
-                let name = &name.mangled;
-                args = quote! { #name };
-            }
-            for (name, _, _) in tail {
-                let name = &name.mangled;
-                args = quote! { (#args, #name) };
-            }
-
-            // Filter only values that are Some
-            let filtered = fields
-                .iter()
-                .map(|(name, _, optic)| {
-                    let optional = if let Optic::Access { component, .. } = optic {
-                        component.is_prism()
-                    } else {
-                        false
-                    };
-                    if optional {
-                        let name = &name.mangled;
-                        quote! { let #name = #name?; }
-                    } else {
-                        quote! {}
-                    }
-                })
-                .collect::<Vec<_>>();
-
-            // map
-            query.push(quote! {
-                .filter_map(|#args| {
-                    #(#filtered)*
+            // Iterate over id's
+            let query = quote! {
+                #ids_expr.filter_map(|#id_name| {
+                    #(#get_by_id)*
                     #constructor
                 })
-            });
+            };
 
             if result.is_empty() {
-                result.push(quote! { { #(#query)* } });
+                result.push(quote! { { #query } });
             } else {
-                result.push(quote! { .chain({ #(#query)* }) });
+                result.push(quote! { .chain({ #query }) });
             }
         }
 
         quote! {
             {
+                use stecs::storage::Storage;
                 #[allow(non_snake_case)]
                 #(#result)*
             }

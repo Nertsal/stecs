@@ -1,27 +1,16 @@
 use crate::{
-    archetype::{SplitFields, StructOfAble},
-    storage::{Storage, StorageFamily},
+    archetype::{SplitFields, Splitable},
+    storage::{IdGenerator, Storage, StorageFamily},
 };
 
+use slotmap::SecondaryMap;
 pub use slotmap::{self, SlotMap};
 
-/// Family of [`SlotMap<K, V>`] storages.
-pub struct SlotMapFamily<K: slotmap::Key>(std::marker::PhantomData<K>);
-
-impl<K: slotmap::Key> StorageFamily for SlotMapFamily<K> {
-    type Id = K;
-    type Storage<T> = SlotMap<K, T>;
-}
-
-unsafe impl<K: slotmap::Key, T> Storage<T> for SlotMap<K, T> {
+impl<K: slotmap::Key, T> Storage<T> for SecondaryMap<K, T> {
     type Family = SlotMapFamily<K>;
     type Id = K;
-    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
-        // SAFETY: `keys()` guarantees validity and uniqueness
-        self.keys()
-    }
-    fn insert(&mut self, value: T) -> Self::Id {
-        self.insert(value)
+    fn insert(&mut self, id: Self::Id, value: T) -> Option<T> {
+        self.insert(id, value)
     }
     fn get(&self, id: Self::Id) -> Option<&T> {
         self.get(id)
@@ -32,22 +21,53 @@ unsafe impl<K: slotmap::Key, T> Storage<T> for SlotMap<K, T> {
     fn remove(&mut self, id: Self::Id) -> Option<T> {
         self.remove(id)
     }
-    #[cfg(feature = "query_mut")]
-    unsafe fn get_many_unchecked_mut<'a>(
-        &'a mut self,
-        ids: impl Iterator<Item = Self::Id>,
-    ) -> impl Iterator<Item = &'a mut T>
-    where
-        T: 'a,
-    {
-        ids.map(move |i| {
-            let r = self.get_mut(i).expect("invalid id: entry absent");
-            &mut *(r as *mut T)
-        })
+    unsafe fn get_unchecked(&self, id: Self::Id) -> &T {
+        unsafe { self.get_unchecked(id) }
+    }
+    unsafe fn get_unchecked_mut(&mut self, id: Self::Id) -> &mut T {
+        unsafe { self.get_unchecked_mut(id) }
     }
 }
 
-impl<K: slotmap::Key, T: SplitFields<SlotMapFamily<K>>> StructOfAble for SlotMap<K, T> {
+#[derive(Clone)]
+pub struct SlotMapIdGenerator<K: slotmap::Key> {
+    alive: SlotMap<K, ()>,
+}
+
+impl<K: slotmap::Key> Default for SlotMapIdGenerator<K> {
+    fn default() -> Self {
+        Self {
+            alive: SlotMap::with_key(),
+        }
+    }
+}
+
+unsafe impl<K: slotmap::Key> IdGenerator for SlotMapIdGenerator<K> {
+    type Id = K;
+    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
+        // SAFETY: `keys()` guarantees uniqueness and partially validity;
+        // proper validity is dependent on the derived implementation of Archetype::insert
+        // passing the generated id's to the storages below.
+        self.alive.keys()
+    }
+    fn spawn(&mut self) -> Self::Id {
+        self.alive.insert(())
+    }
+    fn remove(&mut self, id: Self::Id) -> bool {
+        self.alive.remove(id).is_some()
+    }
+}
+
+/// Family of [`SlotMap<K, V>`] storages.
+pub struct SlotMapFamily<K: slotmap::Key>(std::marker::PhantomData<K>);
+
+impl<K: slotmap::Key> StorageFamily for SlotMapFamily<K> {
+    type Id = K;
+    type Storage<T> = SecondaryMap<K, T>;
+    type IdGenerator = SlotMapIdGenerator<K>;
+}
+
+impl<K: slotmap::Key, T: SplitFields<SlotMapFamily<K>>> Splitable for SlotMap<K, T> {
     type Struct = T;
     type Family = SlotMapFamily<K>;
 }

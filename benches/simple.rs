@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use slotmap::SlotMap;
-use stecs::prelude::*;
+use stecs::{prelude::*, storage::IdGenerator};
 
 /// Entities with position and velocity.
 pub const N_POS_VEL: usize = 10000;
@@ -55,13 +55,18 @@ fn semi_manual_process(world: &mut World) {
             world.units.ids.ids().map(|i| {
                 let r = world
                     .units
+                    .inner
                     .position
                     .get_mut(i)
                     .expect("invalid id: entry absent");
                 unsafe { &mut *(r as *mut Position) }
             })
         };
-        let field_1 = world.units.ids.ids().map(|id| world.units.velocity.get(id));
+        let field_1 = world
+            .units
+            .ids
+            .ids()
+            .map(|id| world.units.inner.velocity.get(id));
         field_0.zip(field_1).filter_map(|(field_0, field_1)| {
             let field_1 = field_1?;
             Some((field_0, field_1))
@@ -77,9 +82,10 @@ fn manual_process(world: &mut World) {
     // NOTE: we can safely zip iter's only because the implementation is known
     let query = world
         .units
+        .inner
         .position
         .iter_mut()
-        .zip(world.units.velocity.iter());
+        .zip(world.units.inner.velocity.iter());
     for ((_, position), (_, velocity)) in query {
         position.x += velocity.dx;
         position.y += velocity.dy;

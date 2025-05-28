@@ -74,18 +74,20 @@ fn main() {
         });
     }
 
-    // Iterate over all fields of all units
-    println!("Units:");
-    for (_id, unit) in world.units.iter() {
-        println!("{unit:?}");
-    }
+    // TODO
+    // // Iterate over all fields of all units
+    // println!("Units:");
+    // for (_id, unit) in world.units.iter() {
+    //     println!("{unit:?}");
+    // }
 
-    // Iterate over all fields of all particles
-    println!("\nParticles:");
-    for (_id, particle) in world.particles.iter() {
-        let particle_cloned: Particle = particle.clone();
-        println!("{particle_cloned:?}");
-    }
+    // TODO
+    // // Iterate over all fields of all particles
+    // println!("\nParticles:");
+    // for (_id, particle) in world.particles.iter_mut() {
+    //     let particle_cloned: Particle = particle.clone();
+    //     println!("{particle_cloned:?}");
+    // }
 
     // Query fields
     {

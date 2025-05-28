@@ -1,5 +1,6 @@
 mod archetype;
 mod struct_ref;
+mod struct_split;
 
 use darling::{ast, FromDeriveInput, FromField};
 use proc_macro2::TokenStream;
@@ -111,7 +112,12 @@ impl Struct {
         let struct_name = &self.name;
         let crate_name = crate::crate_name();
 
-        // StructOf/Archetype name
+        // Split struct (SoA) name
+        let struct_split_name = syn::Ident::new(
+            &format!("{struct_name}Split"),
+            proc_macro2::Span::call_site(),
+        );
+        // StructOf/Archetype (SoA with ids) name
         let struct_of_name = syn::Ident::new(
             &format!("{struct_name}StructOf"),
             proc_macro2::Span::call_site(),
@@ -147,14 +153,24 @@ impl Struct {
         let struct_split_fields = quote! {
             impl<#generics_family> #crate_name::archetype::SplitFields<#generic_family_name> for #struct_name<#generics_use> {
                 type StructOf = #struct_of_name<#generics_family_use>;
+                type Split = #struct_split_name<#generics_family_use>;
             }
         };
+
+        // Struct split
+        let struct_split = self.generate_struct_split(
+            &generic_usage,
+            &generic_family_name,
+            &struct_split_name,
+            &struct_ref_name,
+            &struct_ref_mut_name,
+        );
 
         // StructOf/Archetype
         let struct_archetype = self.generate_struct_archetype(
             &generic_usage,
             &generic_family_name,
-            &lifetime_ref_name,
+            &struct_split_name,
             &struct_of_name,
             &struct_ref_name,
             &struct_ref_mut_name,
@@ -163,6 +179,7 @@ impl Struct {
         let mut generated = TokenStream::new();
         generated.append_all(struct_references);
         generated.append_all(struct_split_fields);
+        generated.append_all(struct_split);
         generated.append_all(struct_archetype);
         generated
     }

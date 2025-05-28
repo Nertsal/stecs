@@ -19,13 +19,14 @@ impl StorageGetOpts {
         let mut get_fields = constructor;
 
         let storage = &self.struct_of;
+        let storage = quote! { #storage.inner };
         let id = &self.id;
         for (name, is_mut, optic) in fields.into_iter().rev() {
             let name = &name.mangled;
             let access = if is_mut {
-                optic.access_mut(quote! { #id }, quote! { #storage })
+                optic.access_mut(true, &quote! { #id }, &storage)
             } else {
-                optic.access(quote! { #id }, quote! { #storage })
+                optic.access(true, &quote! { #id }, &storage)
             };
 
             get_fields = match optic {
@@ -35,23 +36,12 @@ impl StorageGetOpts {
                         #get_fields
                     }
                 },
-                Optic::Access { component, .. } => {
-                    if component.is_prism() {
-                        // Option<Option<T>>
-                        quote! {
-                            match #access {
-                                None => None,
-                                Some(None) => None,
-                                Some(Some(#name)) => { #get_fields }
-                            }
-                        }
-                    } else {
-                        // Option<T>
-                        quote! {
-                            match #access {
-                                None => None,
-                                Some(#name) => { #get_fields }
-                            }
+                Optic::Access { .. } => {
+                    // Option<T>
+                    quote! {
+                        match #access {
+                            None => None,
+                            Some(#name) => { #get_fields }
                         }
                     }
                 }

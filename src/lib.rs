@@ -282,9 +282,23 @@ mod tests;
 /// use `stecs::prelude::*;` to import all necessary traits, types, and macros.
 pub mod prelude {
     pub use crate::{
-        archetype::{Archetype, SplitFields, StructOf, StructOfAble as _},
+        archetype::{Archetype, SplitFields, Splitable as _, StructOf},
         get, query,
         storage::{Storage, StorageFamily},
         SplitFields,
     };
+}
+
+/// Used for upcasting lifetimes of mutably borrowed components.
+#[doc(hidden)]
+pub trait UpcastLifetime<'target> {
+    type Target: 'target;
+    unsafe fn upcast(self) -> Self::Target;
+}
+
+impl<'target, T: 'target> UpcastLifetime<'target> for &mut T {
+    type Target = &'target mut T;
+    unsafe fn upcast<'a>(self) -> Self::Target {
+        unsafe { &mut *std::ptr::from_mut(self) }
+    }
 }

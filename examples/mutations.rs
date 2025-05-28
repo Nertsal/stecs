@@ -47,7 +47,7 @@ fn main() {
 
     // Iterate over a storage
     println!("height += 1");
-    for (_, x) in world.blocks.height.iter_mut() {
+    for (_, x) in world.blocks.inner.height.iter_mut() {
         *x += 1;
     }
 
@@ -57,8 +57,11 @@ fn main() {
     }
 
     // Iterate over a whole nested archetype
+    // NOTE: there is no `iter_mut` method, because split's do not know about identifiers.
+    // Technically, there is information about all the components, but to stay consistent
+    // with archetype iteration, using the query! macro is preferred.
     println!("position.x += 1");
-    for (_, position) in world.blocks.position.iter_mut() {
+    for position in query!(world.blocks, (&mut position)) {
         *position.x += 1;
     }
 

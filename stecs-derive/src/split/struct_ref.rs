@@ -168,10 +168,13 @@ This struct is a version of [`{struct_name}`] that holds references to its field
             quote! {}
         };
 
+        let upcast = self.generate_upcast(generic_usage, struct_ref_name);
+
         quote! {
             #derive
             #struct_ref
             #to_owned
+            #upcast
         }
     }
 
@@ -229,10 +232,53 @@ This struct is a version of [`{struct_name}`] that holds mutable references to i
             quote! {}
         };
 
+        let upcast = self.generate_upcast(generic_usage, struct_ref_mut_name);
+
         quote! {
             #derive
             #struct_ref
             #to_owned
+            #upcast
+        }
+    }
+
+    fn generate_upcast(
+        &self,
+        generic_usage: &GenericUsage,
+        struct_ref_name: &syn::Ident,
+    ) -> TokenStream {
+        let crate_name = &self.crate_name;
+        let GenericUsage {
+            generics,
+            generics_family: _,
+            generics_use,
+            generics_family_use: _,
+        } = generic_usage;
+
+        let constraints = {
+            self.generics.params.iter().map(|param| match param {
+                syn::GenericParam::Lifetime(param) => {
+                    let param = &param.lifetime;
+                    quote! { #param: '__target, }
+                }
+                syn::GenericParam::Type(param) => {
+                    let param = &param.ident;
+                    quote! { #param: '__target, }
+                }
+                syn::GenericParam::Const(_) => quote! {},
+            })
+        };
+
+        quote! {
+            impl<'__target, #generics> #crate_name::UpcastLifetime<'__target>
+            for #struct_ref_name<'_, #generics_use>
+            where #(#constraints)*
+            {
+                type Target = #struct_ref_name<'__target, #generics_use>;
+                unsafe fn upcast(self) -> Self::Target {
+                    std::mem::transmute(self)
+                }
+            }
         }
     }
 }
