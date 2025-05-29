@@ -51,6 +51,8 @@ impl Struct {
                     let ty = &field.ty;
                     let ty = if field.nested {
                         quote! { <#ty as #crate_name::archetype::SplitFields<#generic_family_name>>::Split }
+                    } else if let Some(ty) = &field.is_option {
+                        quote! { #generic_family_name::SparseStorage<#ty> }
                     } else {
                         quote! { #generic_family_name::Storage<#ty> }
                     };
@@ -91,6 +93,8 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     let ty = &field.ty;
                     if field.nested {
                         quote! { <#ty as #crate_name::archetype::SplitFields<#generic_family_name>>::Split: Clone }
+                    } else if let Some(ty) = &field.is_option {
+                        quote! { #generic_family_name::SparseStorage<#ty>: Clone }
                     } else {
                         quote! { #generic_family_name::Storage<#ty>: Clone }
                     }
@@ -150,7 +154,13 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             .iter()
             .map(|field| {
                 let name = &field.name;
-                quote! { let #name = self.#name.get(id)?; }
+                if field.is_option.is_some() {
+                    quote! {
+                        let #name = self.#name.get(id);
+                    }
+                } else {
+                    quote! { let #name = self.#name.get(id)?; }
+                }
             })
             .collect::<Vec<_>>();
         get.push(quote! {
@@ -164,7 +174,13 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             .iter()
             .map(|field| {
                 let name = &field.name;
-                quote! { let #name = self.#name.get_mut(id)?; }
+                if field.is_option.is_some() {
+                    quote! {
+                        let #name = self.#name.get_mut(id);
+                    }
+                } else {
+                    quote! { let #name = self.#name.get_mut(id)?; }
+                }
             })
             .collect::<Vec<_>>();
         get_mut.push(quote! {
@@ -178,7 +194,15 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             .iter()
             .map(|field| {
                 let name = &field.name;
-                quote! { let #name = unsafe { self.#name.get_unchecked(id) }; }
+                if field.is_option.is_some() {
+                    quote! {
+                        let #name = self.#name.get(id);
+                    }
+                } else {
+                    quote! {
+                        let #name = unsafe { self.#name.get_unchecked(id) };
+                    }
+                }
             })
             .collect::<Vec<_>>();
         get_unchecked.push(quote! {
@@ -192,7 +216,15 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             .iter()
             .map(|field| {
                 let name = &field.name;
-                quote! { let #name = unsafe { self.#name.get_unchecked_mut(id) }; }
+                if field.is_option.is_some() {
+                    quote! {
+                        let #name = self.#name.get_mut(id);
+                    }
+                } else {
+                    quote! {
+                        let #name = unsafe { self.#name.get_unchecked_mut(id) };
+                    }
+                }
             })
             .collect::<Vec<_>>();
         get_unchecked_mut.push(quote! {
@@ -234,25 +266,25 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
 
                 #[doc = #get_doc]
                 pub fn get(&self, id: #generic_family_name::Id) -> Option<#struct_ref_name<'_, #generics_use>> {
-                    use #crate_name::storage::Storage;
+                    use #crate_name::storage::{Storage, SparseStorage};
                     #(#get)*
                 }
 
                 #[doc = #get_mut_doc]
                 pub fn get_mut(&mut self, id: #generic_family_name::Id) -> Option<#struct_ref_mut_name<'_, #generics_use>> {
-                    use #crate_name::storage::Storage;
+                    use #crate_name::storage::{Storage, SparseStorage};
                     #(#get_mut)*
                 }
 
                 #[doc = #get_unchecked_doc]
                 pub unsafe fn get_unchecked(&self, id: #generic_family_name::Id) -> #struct_ref_name<'_, #generics_use> {
-                    use #crate_name::storage::Storage;
+                    use #crate_name::storage::{Storage, SparseStorage};
                     #(#get_unchecked)*
                 }
 
                 #[doc = #get_unchecked_mut_doc]
                 pub unsafe fn get_unchecked_mut(&mut self, id: #generic_family_name::Id) -> #struct_ref_mut_name<'_, #generics_use> {
-                    use #crate_name::storage::Storage;
+                    use #crate_name::storage::{Storage, SparseStorage};
                     #(#get_unchecked_mut)*
                 }
             }
@@ -279,8 +311,16 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             .iter()
             .map(|field| {
                 let name = &field.name;
-                quote! {
-                    self.#name.insert(id, value.#name);
+                if field.is_option.is_some() {
+                    quote! {
+                        if let Some(field) = value.#name {
+                            self.#name.insert(id, field);
+                        }
+                    }
+                } else {
+                    quote! {
+                        self.#name.insert(id, value.#name);
+                    }
                 }
             })
             .collect::<Vec<_>>();
@@ -290,8 +330,14 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             .iter()
             .map(|field| {
                 let name = &field.name;
-                quote! {
-                    let #name = self.#name.remove(id)?;
+                if field.is_option.is_some() {
+                    quote! {
+                        let #name = self.#name.remove(id);
+                    }
+                } else {
+                    quote! {
+                        let #name = self.#name.remove(id)?;
+                    }
                 }
             })
             .collect::<Vec<_>>();
@@ -309,11 +355,11 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             impl<#generics_family> #crate_name::archetype::Split<#generic_family_name> for #struct_split_name<#generics_family_use> {
                 type Item = #struct_name<#generics_use>;
                 fn insert(&mut self, id: #generic_family_name::Id, value: Self::Item) {
-                    use #crate_name::storage::Storage;
+                    use #crate_name::storage::{Storage, SparseStorage};
                     #(#insert)*
                 }
                 fn remove(&mut self, id: #generic_family_name::Id) -> Option<Self::Item> {
-                    use #crate_name::storage::Storage;
+                    use #crate_name::storage::{Storage, SparseStorage};
                     #(#remove)*
                 }
             }

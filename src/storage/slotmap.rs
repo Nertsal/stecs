@@ -1,6 +1,6 @@
 use crate::{
     archetype::{SplitFields, Splitable},
-    storage::{IdGenerator, Storage, StorageFamily},
+    storage::{IdGenerator, SparseStorage, Storage, StorageFamily},
 };
 
 use slotmap::SecondaryMap;
@@ -26,6 +26,38 @@ impl<K: slotmap::Key, T> Storage<T> for SecondaryMap<K, T> {
     }
     unsafe fn get_unchecked_mut(&mut self, id: Self::Id) -> &mut T {
         unsafe { self.get_unchecked_mut(id) }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SparseSecondaryMap<K: slotmap::Key, T>(SecondaryMap<K, T>);
+
+impl<K: slotmap::Key, T> Default for SparseSecondaryMap<K, T> {
+    fn default() -> Self {
+        Self(SecondaryMap::default())
+    }
+}
+
+impl<K: slotmap::Key, T> SparseStorage<T> for SparseSecondaryMap<K, T> {
+    type Family = SlotMapFamily<K>;
+    type Id = K;
+    fn insert(&mut self, id: Self::Id, value: T) -> Option<T> {
+        self.0.insert(id, value)
+    }
+    fn get(&self, id: Self::Id) -> Option<&T> {
+        self.0.get(id)
+    }
+    fn get_mut(&mut self, id: Self::Id) -> Option<&mut T> {
+        self.0.get_mut(id)
+    }
+    fn remove(&mut self, id: Self::Id) -> Option<T> {
+        self.0.remove(id)
+    }
+    unsafe fn get_unchecked(&self, id: Self::Id) -> Option<&T> {
+        self.0.get(id)
+    }
+    unsafe fn get_unchecked_mut(&mut self, id: Self::Id) -> Option<&mut T> {
+        self.0.get_mut(id)
     }
 }
 
@@ -63,8 +95,9 @@ pub struct SlotMapFamily<K: slotmap::Key>(std::marker::PhantomData<K>);
 
 impl<K: slotmap::Key> StorageFamily for SlotMapFamily<K> {
     type Id = K;
-    type Storage<T> = SecondaryMap<K, T>;
     type IdGenerator = SlotMapIdGenerator<K>;
+    type Storage<T> = SecondaryMap<K, T>;
+    type SparseStorage<T> = SparseSecondaryMap<K, T>;
 }
 
 impl<K: slotmap::Key, T: SplitFields<SlotMapFamily<K>>> Splitable for SlotMap<K, T> {

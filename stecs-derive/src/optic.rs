@@ -79,7 +79,7 @@ impl Optic {
                     get
                 } else {
                     let value_name = quote! { __value };
-                    let access = component.access_impl(is_mut, quote! { #value_name });
+                    let access = component.access_impl(checked, quote! { #value_name });
                     if checked {
                         quote! {
                             match #get {
@@ -130,34 +130,39 @@ impl OpticComponent {
         }
     }
 
-    fn access_impl(&self, is_mut: bool, entity: TokenStream) -> TokenStream {
+    fn access_impl(&self, is_checked: bool, entity: TokenStream) -> TokenStream {
         match self {
             OpticComponent::Identity => entity,
             OpticComponent::Field { name, optic } => {
-                optic.access_impl(is_mut, quote! { #entity.#name })
+                optic.access_impl(is_checked, quote! { #entity.#name })
             }
             OpticComponent::Some(optic) => {
-                let convert = if is_mut {
-                    quote! { as_mut() }
-                } else {
-                    quote! { as_ref() }
-                };
-
                 if optic.is_identity() {
-                    quote! { #entity.#convert }
+                    if is_checked {
+                        quote! { Some(#entity) }
+                    } else {
+                        quote! { #entity }
+                    }
                 } else {
                     let value_name = quote! { __value };
-                    let tail = optic.access_impl(is_mut, quote! { #value_name });
+                    let tail = optic.access_impl(is_checked, quote! { #value_name });
                     let tail = if optic.is_prism() {
                         tail
                     } else {
                         quote! { Some(#tail) }
                     };
 
-                    quote! {
-                        match #entity.#convert {
-                            None => None,
-                            Some(#value_name) => { #tail }
+                    if is_checked {
+                        quote! {{
+                            let #value_name = #entity;
+                            #tail
+                        }}
+                    } else {
+                        quote! {
+                            match #entity {
+                                None => None,
+                                Some(#value_name) => { #tail }
+                            }
                         }
                     }
                 }

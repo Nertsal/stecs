@@ -1,6 +1,6 @@
 use crate::{
     archetype::{SplitFields, Splitable},
-    storage::{IdGenerator, Storage, StorageFamily},
+    storage::{IdGenerator, SparseStorage, Storage, StorageFamily},
 };
 
 // Adapted from Zero ECS
@@ -16,8 +16,9 @@ pub struct ZeroVecId(usize);
 
 impl StorageFamily for ZeroVecFamily {
     type Id = ZeroVecId;
-    type Storage<T> = ZeroVec<T>;
     type IdGenerator = ZeroVecIdGenerator;
+    type Storage<T> = ZeroVec<T>;
+    type SparseStorage<T> = SparseZeroVec<T>;
 }
 
 impl<T: SplitFields<ZeroVecFamily>> Splitable for ZeroVec<T> {
@@ -32,6 +33,9 @@ pub struct ZeroVec<T> {
     ids: Vec<ZeroVecId>,
     index_lookup: Vec<Option<usize>>,
 }
+
+#[derive(Debug, Clone)]
+pub struct SparseZeroVec<T>(ZeroVec<T>);
 
 /// The generator of identifiers for the [`ZeroVec`] storage.
 #[derive(Default, Debug, Clone)]
@@ -61,6 +65,29 @@ impl<T> Storage<T> for ZeroVec<T> {
     }
     unsafe fn get_unchecked_mut(&mut self, id: Self::Id) -> &mut T {
         unsafe { self.get_unchecked_mut(id) }
+    }
+}
+
+impl<T> SparseStorage<T> for SparseZeroVec<T> {
+    type Family = ZeroVecFamily;
+    type Id = ZeroVecId;
+    fn insert(&mut self, id: Self::Id, value: T) -> Option<T> {
+        self.0.insert(id, value)
+    }
+    fn get(&self, id: Self::Id) -> Option<&T> {
+        self.0.get(id)
+    }
+    fn get_mut(&mut self, id: Self::Id) -> Option<&mut T> {
+        self.0.get_mut(id)
+    }
+    fn remove(&mut self, id: Self::Id) -> Option<T> {
+        self.0.remove(id)
+    }
+    unsafe fn get_unchecked(&self, id: Self::Id) -> Option<&T> {
+        self.0.get(id)
+    }
+    unsafe fn get_unchecked_mut(&mut self, id: Self::Id) -> Option<&mut T> {
+        self.0.get_mut(id)
     }
 }
 
@@ -105,6 +132,12 @@ unsafe impl IdGenerator for ZeroVecIdGenerator {
 impl ZeroVecIdGenerator {
     pub fn new() -> Self {
         Self::default()
+    }
+}
+
+impl<T> Default for SparseZeroVec<T> {
+    fn default() -> Self {
+        Self(ZeroVec::default())
     }
 }
 

@@ -59,7 +59,11 @@ impl Struct {
             .iter()
             .map(|field| {
                 let name = &field.name;
-                quote! { #name: self.#name.clone(), }
+                if field.is_option.is_some() {
+                    quote! { #name: self.#name.as_ref().map(|x| (**x).clone()), }
+                } else {
+                    quote! { #name: self.#name.clone(), }
+                }
             })
             .collect::<Vec<_>>();
 
@@ -134,6 +138,8 @@ impl Struct {
                 let ty = &field.ty;
                 let ty = if field.nested {
                     quote! { <#ty as #crate_name::archetype::StructRef>::Ref<#lifetime_ref_name> }
+                } else if let Some(ty) = &field.is_option {
+                    quote! { Option< &#lifetime_ref_name #ty > }
                 } else {
                     quote! { &#lifetime_ref_name #ty }
                 };
@@ -198,6 +204,8 @@ This struct is a version of [`{struct_name}`] that holds references to its field
                     let ty = &field.ty;
                     let ty = if field.nested {
                         quote! { <#ty as #crate_name::archetype::StructRef>::RefMut<#lifetime_ref_name> }
+                    } else if let Some(ty) = &field.is_option {
+                        quote! { Option< &#lifetime_ref_name mut #ty > }
                     } else {
                         quote! { &#lifetime_ref_name mut #ty }
                     };

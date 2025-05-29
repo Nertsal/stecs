@@ -133,7 +133,7 @@ impl QueryOpts {
 
         quote! {
             {
-                use stecs::storage::Storage;
+                use stecs::storage::{Storage, SparseStorage};
                 #[allow(non_snake_case)]
                 #(#result)*
             }

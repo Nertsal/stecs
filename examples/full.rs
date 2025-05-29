@@ -5,9 +5,9 @@ type Arena<T> = slotmap::SlotMap<slotmap::DefaultKey, T>;
 
 #[derive(Clone)] // `StructOf` implements Clone if possible
 struct GameWorld {
-    units: StructOf<Arena<Unit>>,         // UnitStructOf<VecFamily>,
-    corpses: StructOf<Arena<Corpse>>,     // CorpseStructOf<VecFamily>,
-    particles: StructOf<Arena<Particle>>, // ParticleStructOf<VecFamily>,
+    units: StructOf<Arena<Unit>>,         // UnitStructOf<ArenaFamily>,
+    corpses: StructOf<Arena<Corpse>>,     // CorpseStructOf<ArenaFamily>,
+    particles: StructOf<Arena<Particle>>, // ParticleStructOf<ArenaFamily>,
 }
 
 #[derive(SplitFields, Debug)]
@@ -48,7 +48,7 @@ fn main() {
         pos: (0.0, 0.0),
         health: 10.0,
         tick: 7,
-        damage: None,
+        damage: Some(0.0),
     });
     world.units.insert(Unit {
         pos: (1.0, -2.0),
@@ -74,20 +74,18 @@ fn main() {
         });
     }
 
-    // TODO
-    // // Iterate over all fields of all units
-    // println!("Units:");
-    // for (_id, unit) in world.units.iter() {
-    //     println!("{unit:?}");
-    // }
+    // Iterate over all fields of all units
+    println!("Units:");
+    for (_id, unit) in world.units.iter() {
+        println!("{unit:?}");
+    }
 
-    // TODO
-    // // Iterate over all fields of all particles
-    // println!("\nParticles:");
-    // for (_id, particle) in world.particles.iter_mut() {
-    //     let particle_cloned: Particle = particle.clone();
-    //     println!("{particle_cloned:?}");
-    // }
+    // Iterate over all fields of all particles
+    println!("\nParticles:");
+    for (_id, particle) in world.particles.iter_mut() {
+        let particle_cloned: Particle = particle.clone();
+        println!("{particle_cloned:?}");
+    }
 
     // Query fields
     {
@@ -115,7 +113,7 @@ fn main() {
 
         // Or just query into a tuple
         println!("\nQuerying into a tuple:");
-        for unit in query!(world.units, (id, &pos, &tick)) {
+        for unit in query!(world.units, (id, &pos, &damage.Get.Some)) {
             println!("{:?}", unit);
         }
 

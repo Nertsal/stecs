@@ -39,6 +39,8 @@ struct Field {
     name: syn::Ident,
     ty: syn::Type,
     nested: bool,
+    /// If the type was detected as an `Option<T>`, this contains the type `T`.
+    is_option: Option<syn::Type>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -62,10 +64,12 @@ impl TryFrom<SplitOpts> for Struct {
             .into_iter()
             .map(|field| {
                 let name = field.ident.ok_or(ParseError::NamelessField)?;
+                let is_option = is_option(&field.ty);
                 Ok(Field {
                     name,
                     ty: field.ty,
                     nested: field.nested.is_some(),
+                    is_option,
                 })
             })
             .collect::<Result<Vec<Field>, ParseError>>()?;
@@ -78,6 +82,50 @@ impl TryFrom<SplitOpts> for Struct {
             derive_debug: value.debug.is_some(),
             derive_to_owned: value.clone.is_some(),
         })
+    }
+}
+
+/// Checks if the type is potentially an `Option<T>` and returns `T`.
+/// Is not precise, because it does not know the actual type,
+/// only the name of it.
+fn is_option(ty: &syn::Type) -> Option<syn::Type> {
+    let option_names = [
+        "Option:",
+        "std:option:Option:",
+        "core:option:Option:",
+        "option:Option:",
+    ];
+    match ty {
+        syn::Type::Group(type_group) => is_option(&type_group.elem),
+        syn::Type::Paren(type_paren) => is_option(&type_paren.elem),
+        syn::Type::Path(type_path) if type_path.qself.is_none() => {
+            let idents_of_path =
+                type_path
+                    .path
+                    .segments
+                    .iter()
+                    .fold(String::new(), |mut acc, v| {
+                        acc.push_str(&v.ident.to_string());
+                        acc.push(':');
+                        acc
+                    });
+            option_names
+                .iter()
+                .any(|s| idents_of_path == *s)
+                .then(|| type_path.path.segments.last())
+                .flatten()
+                .and_then(|segment| match &segment.arguments {
+                    syn::PathArguments::AngleBracketed(args) if args.args.len() == 1 => {
+                        let arg = args.args.first().unwrap();
+                        match arg {
+                            syn::GenericArgument::Type(ty) => Some(ty.clone()),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                })
+        }
+        _ => None,
     }
 }
 

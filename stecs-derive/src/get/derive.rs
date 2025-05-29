@@ -15,6 +15,8 @@ impl StorageGetOpts {
         //     },
         // }
 
+        let crate_name = crate::crate_name();
+
         let (fields, constructor) = self.image.prepare_fields_constructor();
         let mut get_fields = constructor;
 
@@ -49,6 +51,7 @@ impl StorageGetOpts {
         }
 
         quote! {{
+            use #crate_name::storage::{Storage, SparseStorage};
             #[allow(non_snake_case)]
             #get_fields
         }}

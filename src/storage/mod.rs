@@ -30,6 +30,32 @@ pub trait Storage<T>: Default {
     unsafe fn get_unchecked_mut(&mut self, id: Self::Id) -> &mut T;
 }
 
+/// A storage of sparse (optional) components.
+pub trait SparseStorage<T>: Default {
+    /// Type of the abstract family corresponding to the storages of this type.
+    type Family: StorageFamily;
+    /// Type of the identifier used for components/entities.
+    type Id: Copy;
+
+    /// Insert a new component at the given id.
+    /// Returns the old component if it was present at that location.
+    fn insert(&mut self, id: Self::Id, value: T) -> Option<T>;
+    /// Get an immutable reference to a component a given id.
+    fn get(&self, id: Self::Id) -> Option<&T>;
+    /// Get a mutable reference to a component a given id.
+    fn get_mut(&mut self, id: Self::Id) -> Option<&mut T>;
+    /// Remove an component with a given id.
+    fn remove(&mut self, id: Self::Id) -> Option<T>;
+    /// Get an immutable reference to a component at the given id.
+    /// # Safety
+    /// The given `id` must be present in the storage.
+    unsafe fn get_unchecked(&self, id: Self::Id) -> Option<&T>;
+    /// Get an mutable reference to a component at the given id.
+    /// # Safety
+    /// The given `id` must be present in the storage.
+    unsafe fn get_unchecked_mut(&mut self, id: Self::Id) -> Option<&mut T>;
+}
+
 /// A generator of identifiers to use with [`Storage`].
 ///
 /// # Safety
@@ -58,4 +84,6 @@ pub trait StorageFamily {
     type IdGenerator: IdGenerator<Id = Self::Id>;
     /// Type of a specific storage.
     type Storage<T>: Storage<T, Family = Self, Id = Self::Id>;
+    /// Type of a specific sparse storage used for optional components.
+    type SparseStorage<T>: SparseStorage<T, Family = Self, Id = Self::Id>;
 }
