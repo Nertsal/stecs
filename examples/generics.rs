@@ -6,14 +6,14 @@ struct World<'a> {
 }
 
 #[derive(SplitFields)]
-#[split(debug, clone)]
+#[split(struct_ref(debug, to_owned))]
 struct Position<F: 'static> {
     x: F,
     y: F,
 }
 
 #[derive(SplitFields)]
-#[split(debug, clone)]
+#[split(struct_ref(debug, to_owned))]
 struct Unit<'a> {
     #[split(nested)]
     position: Position<f32>,

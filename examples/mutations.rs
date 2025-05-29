@@ -6,13 +6,13 @@ struct World {
 }
 
 #[derive(SplitFields)]
-#[split(debug)]
+#[split(struct_ref(debug))]
 struct Position {
     x: i64,
 }
 
 #[derive(SplitFields)]
-#[split(debug)]
+#[split(struct_ref(debug))]
 struct Block {
     #[split(nested)]
     position: Position,

@@ -11,7 +11,7 @@ pub struct Poisoned {
 }
 
 #[derive(SplitFields)]
-#[split(dynamic, debug)]
+#[split(archetype(dynamic), struct_ref(debug))]
 pub struct Unit {
     pub name: String,
 }

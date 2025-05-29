@@ -72,12 +72,12 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
 **Note**: It is not intended to be used directly, but rather as, for example, `StructOf<Vec<{struct_name}>>`."#
         );
 
-        let dynamic = if self.archetype_dynamic {
+        let dynamic = if self.archetype.dynamic {
             #[cfg(not(feature = "dynamic"))]
             panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
             #[cfg(feature = "dynamic")]
             {
-                let storage = if self.archetype_clone {
+                let storage = if self.archetype.clone {
                     quote! { #crate_name::dynamic::DynamicCloneArchetype<#generic_family_name> }
                 } else {
                     quote! { #crate_name::dynamic::DynamicArchetype<#generic_family_name> }
@@ -95,7 +95,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             quote! {}
         };
 
-        let derive: Vec<TokenStream> = if self.derive_serialize || self.derive_deserialize {
+        let derive: Vec<TokenStream> = if self.archetype.serialize || self.archetype.deserialize {
             #[cfg(not(feature = "serde"))]
             panic!("Enable the `serde` feature to support (de)serialization in archetypes.");
 
@@ -104,7 +104,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                 let generics_use = &generic_usage.generics_use;
                 let mut derive = Vec::new();
                 let mut bounds = Vec::new();
-                if self.derive_serialize {
+                if self.archetype.serialize {
                     let bound = format!(
                         "{}",
                         quote! {
@@ -115,7 +115,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     bounds.push(quote! { serialize = #bound });
                     derive.push(quote! { #[derive(serde::Serialize)] });
                 }
-                if self.derive_deserialize {
+                if self.archetype.deserialize {
                     let bound = format!(
                         "{}",
                         quote! {
@@ -161,14 +161,14 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
         struct_split_name: &syn::Ident,
         struct_of_name: &syn::Ident,
     ) -> TokenStream {
-        if !self.archetype_clone {
+        if !self.archetype.clone {
             return quote! {};
         }
 
         let generics_family = &generic_usage.generics_family;
         let generics_family_use = &generic_usage.generics_family_use;
 
-        let (dynamic, dynamic_constraint) = if self.archetype_dynamic {
+        let (dynamic, dynamic_constraint) = if self.archetype.dynamic {
             #[cfg(not(feature = "dynamic"))]
             panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
             #[cfg(feature = "dynamic")]
@@ -291,7 +291,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             }
         };
 
-        let dynamic = if self.archetype_dynamic {
+        let dynamic = if self.archetype.dynamic {
             #[cfg(not(feature = "dynamic"))]
             panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
 
@@ -304,7 +304,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     quote! { #generic_family_name::Id: 'static, },
                     quote! { #generic_family_name::Storage<__T>: 'static, },
                 ];
-                if self.archetype_clone {
+                if self.archetype.clone {
                     constraints.extend([
                         quote! { #generic_family_name::Storage<__T>: ::std::clone::Clone, },
                         quote! { __T: ::std::clone::Clone + 'static, },
@@ -439,7 +439,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             generics_family_use,
         } = generic_usage;
 
-        let dynamic = if self.archetype_dynamic {
+        let dynamic = if self.archetype.dynamic {
             #[cfg(not(feature = "dynamic"))]
             panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
             #[cfg(feature = "dynamic")]

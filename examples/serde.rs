@@ -2,14 +2,14 @@ use serde::{Deserialize, Serialize};
 use stecs::{prelude::*, storage::zero_vec::ZeroVec};
 
 #[derive(SplitFields, Debug, Clone, PartialEq)]
-#[split(serialize, deserialize)]
+#[split(archetype(serialize, deserialize))]
 struct Unit {
     position: f32,
     health: Option<f32>,
 }
 
 #[derive(SplitFields, Debug, Clone, PartialEq)]
-#[split(serialize, deserialize)]
+#[split(archetype(serialize, deserialize))]
 struct Particle {
     position: f32,
     size: u32,

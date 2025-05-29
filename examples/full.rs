@@ -11,7 +11,8 @@ struct GameWorld {
 }
 
 #[derive(SplitFields, Debug)]
-#[split(debug, clone)] // derive `Debug` for the `UnitRef` generated struct
+#[split(archetype(clone))] // derive `Clone` for the `UnitStructOf` generate archetype
+#[split(struct_ref(debug))] // derive `Debug` for the `UnitRef` generated struct
 struct Unit {
     pos: (f32, f32),
     health: f32,
@@ -20,7 +21,7 @@ struct Unit {
 }
 
 #[derive(SplitFields)]
-#[split(clone)]
+#[split(archetype(clone))]
 struct Corpse {
     // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
     // But you can still access the whole `Unit` as a single component.
@@ -30,7 +31,8 @@ struct Corpse {
 }
 
 #[derive(SplitFields, Debug)]
-#[split(clone)] // implement clone method for the `ParticleRef` generated struct to clone the data into a `Particle`
+#[split(archetype(clone))]
+#[split(struct_ref(to_owned))] // implement clone method for the `ParticleRef` generated struct to clone the data into a `Particle`
 struct Particle {
     pos: (f32, f32),
     time: f32,

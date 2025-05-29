@@ -151,24 +151,31 @@
 /// - `Ref` struct that is used when iterating over the generated archetype
 /// - `RefMut` struct that is used when mutably iterating over the generated archetype
 ///
-/// You can annotate the struct with `#[split(debug)]` to derive a [`Debug`](trait@std::fmt::Debug) impl
-/// for the `Ref` and `RefMut` structs, and with `#[split(clone)]` to derive [`Clone`](trait@std::clone::Clone).
+/// Struct annotations:
+/// - archetype
+///   - `#[split(archetype(clone))]`: derive [`Clone`](trait@std::clone::Clone) for the generated archetype;
+///   - `#[split(archetype(dynamic))]`: add support for dynamic components;
+///   - `#[split(archetype(serialize, deserialize))]`: add support for serde for the archetype;
+/// - struct_ref
+///   - `#[split(struct_ref(debug))]`: derive [`Debug`](trait@std::fmt::Debug) for the generated reference structs;
+///   - `#[split(struct_ref(to_owned))]`: derive a method for converting reference structs into the owned struct;
 ///
-/// Also, you can annotate fields with `#[split(nested)]`, if that field is another archetype, to also split its fields.
+/// Field annotations:
+/// - `#[split(nested)]`: if that field is another archetype, splits its fields.
 ///
 /// # Example
 ///
 /// ```
 /// # use stecs::prelude::*;
 /// #[derive(SplitFields)]
-/// #[split(debug, clone)]
+/// #[split(archetype(serialize), struct_ref(debug, to_owned))]
 /// struct Position {
 ///     x: f64,
 ///     y: f64,
 /// }
 ///
 /// #[derive(SplitFields)]
-/// #[split(debug, clone)]
+/// #[split(archetype(clone, dynamic), struct_ref(debug, to_owned))]
 /// struct Projectile {
 ///     #[split(nested)]
 ///     position: Position,

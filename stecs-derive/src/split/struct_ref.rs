@@ -141,7 +141,7 @@ impl Struct {
             })
             .collect::<Vec<_>>();
 
-        let derive = if self.derive_debug {
+        let derive = if self.struct_ref.debug {
             quote! { #[derive(Debug)] }
         } else {
             quote! {}
@@ -158,7 +158,7 @@ This struct is a version of [`{struct_name}`] that holds references to its field
                 #(#fields)*
             }
         };
-        let to_owned = if self.derive_to_owned {
+        let to_owned = if self.struct_ref.to_owned {
             quote! {
                 impl<#generics> #struct_ref_name<'_, #generics_use> {
                     #struct_ref_to_owned
@@ -205,7 +205,7 @@ This struct is a version of [`{struct_name}`] that holds references to its field
                 })
                 .collect::<Vec<_>>();
 
-        let derive = if self.derive_debug {
+        let derive = if self.struct_ref.debug {
             quote! { #[derive(Debug)] }
         } else {
             quote! {}
@@ -222,7 +222,7 @@ This struct is a version of [`{struct_name}`] that holds mutable references to i
                 #(#fields)*
             }
         };
-        let to_owned = if self.derive_to_owned {
+        let to_owned = if self.struct_ref.to_owned {
             quote! {
                 impl<#generics> #struct_ref_mut_name<'_, #generics_use> {
                     #struct_ref_to_owned

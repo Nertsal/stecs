@@ -13,11 +13,22 @@ pub struct SplitOpts {
     vis: syn::Visibility,
     data: ast::Data<(), FieldOpts>,
     generics: syn::Generics,
-    debug: Option<()>,
+    archetype: Option<ArchetypeOpts>,
+    struct_ref: Option<StructRefOpts>,
+}
+
+#[derive(darling::FromMeta, Clone, Copy)]
+pub struct ArchetypeOpts {
     clone: Option<()>,
     serialize: Option<()>,
     deserialize: Option<()>,
     dynamic: Option<()>,
+}
+
+#[derive(darling::FromMeta, Clone, Copy)]
+pub struct StructRefOpts {
+    debug: Option<()>,
+    to_owned: Option<()>,
 }
 
 #[derive(FromField)]
@@ -34,12 +45,20 @@ struct Struct {
     visibility: syn::Visibility,
     fields: Vec<Field>,
     generics: syn::Generics,
-    archetype_clone: bool,
-    archetype_dynamic: bool,
-    derive_debug: bool,
-    derive_to_owned: bool,
-    derive_serialize: bool,
-    derive_deserialize: bool,
+    archetype: Archetype,
+    struct_ref: StructRef,
+}
+
+struct Archetype {
+    clone: bool,
+    serialize: bool,
+    deserialize: bool,
+    dynamic: bool,
+}
+
+struct StructRef {
+    debug: bool,
+    to_owned: bool,
 }
 
 struct Field {
@@ -82,12 +101,16 @@ impl TryFrom<SplitOpts> for Struct {
             visibility: value.vis,
             fields,
             generics: value.generics,
-            archetype_clone: value.clone.is_some(), // TODO: better
-            archetype_dynamic: value.dynamic.is_some(),
-            derive_debug: value.debug.is_some(),
-            derive_to_owned: value.clone.is_some(),
-            derive_serialize: value.serialize.is_some(),
-            derive_deserialize: value.deserialize.is_some(),
+            archetype: Archetype {
+                clone: value.archetype.is_some_and(|a| a.clone.is_some()),
+                serialize: value.archetype.is_some_and(|a| a.serialize.is_some()),
+                deserialize: value.archetype.is_some_and(|a| a.deserialize.is_some()),
+                dynamic: value.archetype.is_some_and(|a| a.dynamic.is_some()),
+            },
+            struct_ref: StructRef {
+                debug: value.struct_ref.is_some_and(|a| a.debug.is_some()),
+                to_owned: value.struct_ref.is_some_and(|a| a.to_owned.is_some()),
+            },
         })
     }
 }
