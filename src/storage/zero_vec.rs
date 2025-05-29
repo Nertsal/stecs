@@ -26,9 +26,6 @@ impl<T: SplitFields<ZeroVecFamily>> Splitable for ZeroVec<T> {
 }
 
 /// Storage that acts as a wrapper over [`Vec`].
-///
-/// It has fast iteration and insertion, but grows memory
-/// linearly with the number of entities inserted throughout its lifetime.
 #[derive(Debug, Clone)]
 pub struct ZeroVec<T> {
     data: Vec<T>,

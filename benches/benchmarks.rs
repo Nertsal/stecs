@@ -133,7 +133,7 @@ fn bench_filter_iter(c: &mut Criterion) {
 }
 
 fn bench_compare_manual(c: &mut Criterion) {
-    let mut group = c.benchmark_group("querying methods");
+    let mut group = c.benchmark_group("compare_manual");
     configure_group(&mut group);
     group.bench_function("macro", |b| {
         let mut bench = stecs::simple_iter::Benchmark::new();
@@ -158,6 +158,23 @@ fn bench_compare_manual(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_compare_storage(c: &mut Criterion) {
+    let mut group = c.benchmark_group("compare_storage");
+    configure_group(&mut group);
+    group.bench_function("SlotMap", |b| {
+        let mut bench = stecs::compare_storage::Benchmark::<
+            ::stecs::storage::slotmap::SlotMapFamily<slotmap::DefaultKey>,
+        >::new();
+        b.iter(|| bench.run())
+    });
+    group.bench_function("ZeroVec", |b| {
+        let mut bench =
+            stecs::compare_storage::Benchmark::<::stecs::storage::zero_vec::ZeroVecFamily>::new();
+        b.iter(|| bench.run())
+    });
+    group.finish();
+}
+
 fn configure_group<M: Measurement>(group: &mut BenchmarkGroup<'_, M>) {
     group.significance_level(0.01).sample_size(500);
 }
@@ -169,6 +186,7 @@ criterion_group!(
     bench_fragmented_iter,
     bench_filter_iter,
     bench_compare_manual,
+    bench_compare_storage,
 );
 
 fn main() {

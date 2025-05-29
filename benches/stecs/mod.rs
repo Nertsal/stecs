@@ -1,3 +1,4 @@
+pub mod compare_storage;
 pub mod filter_iter;
 pub mod fragmented_iter;
 pub mod simple_insert;
