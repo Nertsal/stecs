@@ -45,7 +45,7 @@ impl<K: slotmap::Key> Default for SlotMapIdGenerator<K> {
 
 unsafe impl<K: slotmap::Key> IdGenerator for SlotMapIdGenerator<K> {
     type Id = K;
-    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
+    fn ids(&self) -> impl Iterator<Item = Self::Id> {
         // SAFETY: `keys()` guarantees uniqueness and partially validity;
         // proper validity is dependent on the derived implementation of Archetype::insert
         // passing the generated id's to the storages below.

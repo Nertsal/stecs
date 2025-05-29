@@ -42,9 +42,7 @@ pub unsafe trait IdGenerator: Default {
     type Id: Copy;
 
     /// Returns the unique id's of all active entities in the storage in an arbitrary order.
-    ///
-    /// **Note**: [`Clone`](trait@std::clone::Clone) is constrained for sharing between multiple fields' accessors when implementing [`get_many_unchecked_mut`](Storage::get_many_unchecked_mut).
-    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone;
+    fn ids(&self) -> impl Iterator<Item = Self::Id>;
     /// Generate a new available id.
     fn spawn(&mut self) -> Self::Id;
     /// Remove/free an id, returns `true` if the id was present.

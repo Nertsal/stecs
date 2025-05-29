@@ -70,7 +70,7 @@ impl<T> Storage<T> for ZeroVec<T> {
 unsafe impl IdGenerator for ZeroVecIdGenerator {
     type Id = ZeroVecId;
 
-    fn ids(&self) -> impl Iterator<Item = Self::Id> + Clone {
+    fn ids(&self) -> impl Iterator<Item = Self::Id> {
         self.ids.iter().copied()
     }
 

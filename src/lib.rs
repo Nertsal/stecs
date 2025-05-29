@@ -134,6 +134,9 @@
 //!    It is usually a single identifier that is the name of the component.
 //!    But it can also be multiple dot-separated identifiers when querying inside a nested storage.
 //!
+//!    However, when querying dynamic components, use a `dyn` keyword followed by the type of the component,
+//!    i.e. `&dyn Poisoned.Some`.
+//!
 //! 3. `.Some`. The **component** optic describes manipulations on the component value and starts after the `.Get`.
 //!    Typically, the component optic is either omitted or used to filter out optional components: `.Some`.
 //!
@@ -143,13 +146,16 @@
 //! - filter out optional components: `.Some`
 //!
 
+// ----------------------- END OF TOP-LEVEL CRATE DOCUMENTATION -----------------------
+
 /// Derive macro for the static archetypes.
 ///
 /// Generates:
 /// - impl [`SplitFields`](crate::archetype::SplitFields)
-/// - `XStructOf`, an analogous structure to the one being derived, with fields being general storages (see example below)
-/// - `Ref` struct that is used when iterating over the generated archetype
-/// - `RefMut` struct that is used when mutably iterating over the generated archetype
+/// - `XSplit`, an analogous structure to the one being derived, with fields being general storages;
+/// - `XStructOf`, combining split fields with other structures to provide the API;
+/// - `Ref` struct that is used when iterating over the generated archetype;
+/// - `RefMut` struct that is used when mutably iterating over the generated archetype.
 ///
 /// Struct annotations:
 /// - archetype
