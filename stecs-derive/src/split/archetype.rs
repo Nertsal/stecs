@@ -61,7 +61,7 @@ impl Struct {
         let GenericUsage {
             generics: _,
             generics_family,
-            generics_use,
+            generics_use: _,
             generics_family_use,
         } = generic_usage;
 
@@ -95,13 +95,14 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             quote! {}
         };
 
-        let mut derive: Vec<TokenStream> = Vec::new();
-        if self.derive_serialize || self.derive_deserialize {
+        let derive: Vec<TokenStream> = if self.derive_serialize || self.derive_deserialize {
             #[cfg(not(feature = "serde"))]
             panic!("Enable the `serde` feature to support (de)serialization in archetypes.");
 
             #[cfg(feature = "serde")]
             {
+                let generics_use = &generic_usage.generics_use;
+                let mut derive = Vec::new();
                 let mut bounds = Vec::new();
                 if self.derive_serialize {
                     let bound = format!(
@@ -126,8 +127,11 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     derive.push(quote! { #[derive(serde::Deserialize)] });
                 }
                 derive.push(quote! { #[serde(bound( #(#bounds),* ))] });
+                derive
             }
-        }
+        } else {
+            Vec::new()
+        };
 
         quote! {
             #[doc = #struct_of_doc]
@@ -161,7 +165,6 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             return quote! {};
         }
 
-        let crate_name = &self.crate_name;
         let generics_family = &generic_usage.generics_family;
         let generics_family_use = &generic_usage.generics_family_use;
 
@@ -169,10 +172,13 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             #[cfg(not(feature = "dynamic"))]
             panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
             #[cfg(feature = "dynamic")]
-            (
-                quote! { r#dyn: self.r#dyn.clone(), },
-                quote! { #crate_name::dynamic::DynamicCloneArchetype<#generic_family_name>: ::std::clone::Clone, },
-            )
+            {
+                let crate_name = &self.crate_name;
+                (
+                    quote! { r#dyn: self.r#dyn.clone(), },
+                    quote! { #crate_name::dynamic::DynamicCloneArchetype<#generic_family_name>: ::std::clone::Clone, },
+                )
+            }
         } else {
             (quote! {}, quote! {})
         };

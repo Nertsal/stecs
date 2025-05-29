@@ -9,6 +9,7 @@ fn entity_remove_id_invalid() {
         a: (),
     }
 
+    #[allow(dead_code)]
     fn test_storage<F: StorageFamily>() {
         let mut units = <Unit as SplitFields<F>>::StructOf::default();
         let id = units.insert(Unit { a: () });

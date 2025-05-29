@@ -76,4 +76,4 @@ required-features = ["slotmap", "zero_vec", "serde"]
 [[example]]
 name = "dynamic"
 doc-scrape-examples = true
-required-features = ["slotmap", "dynamic"]
+required-features = ["slotmap", "query_mut", "dynamic"]

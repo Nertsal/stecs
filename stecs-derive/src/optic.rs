@@ -38,6 +38,7 @@ pub enum OpticComponent {
 pub enum Access {
     Borrowed,
     BorrowedMut,
+    #[cfg(feature = "dynamic")]
     Owned,
 }
 
@@ -179,6 +180,7 @@ impl OpticComponent {
             }
             OpticComponent::Some(optic) => {
                 let convert = match access {
+                    #[cfg(feature = "dynamic")]
                     Access::Owned => quote! {},
                     Access::Borrowed => quote! { .as_ref() },
                     Access::BorrowedMut => quote! { .as_mut() },
