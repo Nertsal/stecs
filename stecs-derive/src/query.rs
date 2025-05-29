@@ -75,7 +75,7 @@ impl QueryOpts {
             let ids_expr = quote! { #crate_name::storage::IdGenerator::ids(&#storage.ids) };
             let id_name = syn::Ident::new("__ID", proc_macro2::Span::call_site());
             let id_expr = quote! { #id_name };
-            let storage = quote! { #storage.inner };
+            let storage = quote! { #storage };
 
             // Get an entity by id
             let mut get_by_id = vec![];
@@ -83,6 +83,8 @@ impl QueryOpts {
                 let name = &name.mangled;
 
                 let optional = match optic {
+                    #[cfg(feature = "dynamic")]
+                    Optic::Dynamic { component, .. } => component.is_prism(),
                     Optic::GetId => false,
                     Optic::Access { component, .. } => component.is_prism(),
                 };

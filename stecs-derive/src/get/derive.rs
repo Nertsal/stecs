@@ -19,7 +19,7 @@ impl StorageGetOpts {
         let mut get_fields = constructor;
 
         let storage = &self.struct_of;
-        let storage = quote! { #storage.inner };
+        let storage = quote! { #storage };
         let id = &self.id;
         for (name, is_mut, optic) in fields.into_iter().rev() {
             let name = &name.mangled;
@@ -30,6 +30,13 @@ impl StorageGetOpts {
             };
 
             get_fields = match optic {
+                #[cfg(feature = "dynamic")]
+                Optic::Dynamic { .. } => quote! {
+                    {
+                        let #name = #access;
+                        #get_fields
+                    }
+                },
                 Optic::GetId => quote! {
                     {
                         let #name = #access;

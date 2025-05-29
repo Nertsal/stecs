@@ -72,6 +72,29 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
 **Note**: It is not intended to be used directly, but rather as, for example, `StructOf<Vec<{struct_name}>>`."#
         );
 
+        let dynamic = if self.archetype_dynamic {
+            #[cfg(not(feature = "dynamic"))]
+            panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
+            #[cfg(feature = "dynamic")]
+            {
+                let storage = if self.archetype_clone {
+                    quote! { #crate_name::dynamic::DynamicCloneArchetype<#generic_family_name> }
+                } else {
+                    quote! { #crate_name::dynamic::DynamicArchetype<#generic_family_name> }
+                };
+                quote! {
+                    /// Dynamic components attached to the archetype.
+                    ///
+                    /// **Note**: not intended to be used directly,
+                    /// but rather via methods and querying macros.
+                    /// *It is only exposed to be accessible in queries*.
+                    pub r#dyn: #storage,
+                }
+            }
+        } else {
+            quote! {}
+        };
+
         let mut derive: Vec<TokenStream> = Vec::new();
         if self.derive_serialize || self.derive_deserialize {
             #[cfg(not(feature = "serde"))]
@@ -122,6 +145,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                 /// but rather via methods and querying macros.
                 /// *It is only exposed to be accessible in queries*.
                 pub inner: #struct_split_name<#generics_family_use>,
+                #dynamic
             }
         }
     }
@@ -133,19 +157,38 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
         struct_split_name: &syn::Ident,
         struct_of_name: &syn::Ident,
     ) -> TokenStream {
+        if !self.archetype_clone {
+            return quote! {};
+        }
+
+        let crate_name = &self.crate_name;
         let generics_family = &generic_usage.generics_family;
         let generics_family_use = &generic_usage.generics_family_use;
+
+        let (dynamic, dynamic_constraint) = if self.archetype_dynamic {
+            #[cfg(not(feature = "dynamic"))]
+            panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
+            #[cfg(feature = "dynamic")]
+            (
+                quote! { r#dyn: self.r#dyn.clone(), },
+                quote! { #crate_name::dynamic::DynamicCloneArchetype<#generic_family_name>: ::std::clone::Clone, },
+            )
+        } else {
+            (quote! {}, quote! {})
+        };
 
         quote! {
             impl<#generics_family> ::std::clone::Clone for #struct_of_name<#generics_family_use>
             where
                 #generic_family_name::IdGenerator: ::std::clone::Clone,
                 #struct_split_name<#generics_family_use>: ::std::clone::Clone,
+                #dynamic_constraint
             {
                 fn clone(&self) -> Self {
                     Self {
                         ids: self.ids.clone(),
                         inner: self.inner.clone(),
+                        #dynamic
                     }
                 }
             }
@@ -242,6 +285,50 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             }
         };
 
+        let dynamic = if self.archetype_dynamic {
+            #[cfg(not(feature = "dynamic"))]
+            panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
+
+            #[cfg(feature = "dynamic")]
+            {
+                let insert_dyn_doc = r#"Insert a dynamic component into an entity. Returns the old component if it was present"#.to_string();
+                let remove_dyn_doc = r#"Remove a dynamic component from an entity."#.to_string();
+
+                let mut constraints = vec![
+                    quote! { #generic_family_name::Id: 'static, },
+                    quote! { #generic_family_name::Storage<__T>: 'static, },
+                ];
+                if self.archetype_clone {
+                    constraints.extend([
+                        quote! { #generic_family_name::Storage<__T>: ::std::clone::Clone, },
+                        quote! { __T: ::std::clone::Clone + 'static, },
+                    ]);
+                } else {
+                    constraints.push(quote! { __T: 'static, });
+                }
+
+                quote! {
+                    #[doc = #insert_dyn_doc]
+                    pub fn insert_dyn<__T>(&mut self, id: #generic_family_name::Id, component: __T) -> Option<__T>
+                    where
+                        #(#constraints)*
+                    {
+                        self.r#dyn.insert(id, component)
+                    }
+
+                    #[doc = #remove_dyn_doc]
+                    pub fn remove_dyn<__T>(&mut self, id: #generic_family_name::Id) -> Option<__T>
+                    where
+                        #(#constraints)*
+                    {
+                        self.r#dyn.remove(id)
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
         quote! {
             impl<#generics_family> #struct_of_name<#generics_family_use> {
                 pub fn new() -> Self
@@ -285,6 +372,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                 }
 
                 #query_mut
+                #dynamic
             }
 
             impl<#generics_family> IntoIterator for #struct_of_name<#generics_family_use> {
@@ -345,6 +433,15 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
             generics_family_use,
         } = generic_usage;
 
+        let dynamic = if self.archetype_dynamic {
+            #[cfg(not(feature = "dynamic"))]
+            panic!("Enable the `dynamic` feature to support dynamic components in archetypes.");
+            #[cfg(feature = "dynamic")]
+            quote! { r#dyn: ::std::default::Default::default(), }
+        } else {
+            quote! {}
+        };
+
         quote! {
             impl<#generics_family> ::std::default::Default for #struct_of_name<#generics_family_use>
             where
@@ -354,6 +451,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
                     Self {
                         ids: ::std::default::Default::default(),
                         inner: ::std::default::Default::default(),
+                        #dynamic
                     }
                 }
             }

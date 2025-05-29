@@ -17,6 +17,7 @@ proc-macro = true
 default = []
 serde = []
 query_mut = []
+dynamic = []
 
 [dependencies]
 darling = "0.20"

@@ -11,7 +11,7 @@ struct GameWorld {
 }
 
 #[derive(SplitFields, Debug)]
-#[split(debug)] // derive `Debug` for the `UnitRef` generated struct
+#[split(debug, clone)] // derive `Debug` for the `UnitRef` generated struct
 struct Unit {
     pos: (f32, f32),
     health: f32,
@@ -20,6 +20,7 @@ struct Unit {
 }
 
 #[derive(SplitFields)]
+#[split(clone)]
 struct Corpse {
     // Nest `Unit` to efficiently store the fields and to refer to them directly in the queries.
     // But you can still access the whole `Unit` as a single component.

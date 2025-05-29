@@ -17,6 +17,7 @@ pub struct SplitOpts {
     clone: Option<()>,
     serialize: Option<()>,
     deserialize: Option<()>,
+    dynamic: Option<()>,
 }
 
 #[derive(FromField)]
@@ -33,6 +34,8 @@ struct Struct {
     visibility: syn::Visibility,
     fields: Vec<Field>,
     generics: syn::Generics,
+    archetype_clone: bool,
+    archetype_dynamic: bool,
     derive_debug: bool,
     derive_to_owned: bool,
     derive_serialize: bool,
@@ -79,6 +82,8 @@ impl TryFrom<SplitOpts> for Struct {
             visibility: value.vis,
             fields,
             generics: value.generics,
+            archetype_clone: value.clone.is_some(), // TODO: better
+            archetype_dynamic: value.dynamic.is_some(),
             derive_debug: value.debug.is_some(),
             derive_to_owned: value.clone.is_some(),
             derive_serialize: value.serialize.is_some(),

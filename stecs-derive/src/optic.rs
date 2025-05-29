@@ -4,6 +4,11 @@ use syn::{parse::Parse, punctuated::Punctuated};
 
 #[derive(Debug, Clone)]
 pub enum Optic {
+    #[cfg(feature = "dynamic")]
+    Dynamic {
+        ty: syn::Type,
+        component: OpticComponent,
+    },
     GetId,
     Access {
         storage: OpticStorage,
@@ -30,6 +35,22 @@ pub enum OpticComponent {
     Some(Box<OpticComponent>),
 }
 
+pub enum Access {
+    Borrowed,
+    BorrowedMut,
+    Owned,
+}
+
+impl Access {
+    pub fn borrow(is_mut: bool) -> Self {
+        if is_mut {
+            Self::BorrowedMut
+        } else {
+            Self::Borrowed
+        }
+    }
+}
+
 impl Optic {
     /// Access the target component immutably.
     pub fn access(&self, checked: bool, id: &TokenStream, archetype: &TokenStream) -> TokenStream {
@@ -54,9 +75,28 @@ impl Optic {
         archetype: &TokenStream,
     ) -> TokenStream {
         match self {
+            #[cfg(feature = "dynamic")]
+            Optic::Dynamic { ty, component } => {
+                let value_name = quote! { __value };
+                let storage = if is_mut {
+                    quote! { #archetype.r#dyn.get_mut::<#ty>(#id) }
+                } else {
+                    quote! { #archetype.r#dyn.get::<#ty>(#id) }
+                };
+
+                if component.is_identity() {
+                    quote! { #storage }
+                } else {
+                    let access = component.access_impl(Access::Owned, quote! { #value_name });
+                    quote! {{
+                        let #value_name = #storage;
+                        #access
+                    }}
+                }
+            }
             Optic::GetId => quote! { #id },
             Optic::Access { storage, component } => {
-                let storage = storage.access(archetype);
+                let storage = storage.access(&quote! { #archetype.inner });
 
                 let getter = if is_mut {
                     if checked {
@@ -79,7 +119,8 @@ impl Optic {
                     get
                 } else {
                     let value_name = quote! { __value };
-                    let access = component.access_impl(is_mut, quote! { #value_name });
+                    let access =
+                        component.access_impl(Access::borrow(is_mut), quote! { #value_name });
                     if checked {
                         quote! {
                             match #get {
@@ -130,24 +171,24 @@ impl OpticComponent {
         }
     }
 
-    fn access_impl(&self, is_mut: bool, entity: TokenStream) -> TokenStream {
+    fn access_impl(&self, access: Access, entity: TokenStream) -> TokenStream {
         match self {
             OpticComponent::Identity => entity,
             OpticComponent::Field { name, optic } => {
-                optic.access_impl(is_mut, quote! { #entity.#name })
+                optic.access_impl(access, quote! { #entity.#name })
             }
             OpticComponent::Some(optic) => {
-                let convert = if is_mut {
-                    quote! { as_mut() }
-                } else {
-                    quote! { as_ref() }
+                let convert = match access {
+                    Access::Owned => quote! {},
+                    Access::Borrowed => quote! { .as_ref() },
+                    Access::BorrowedMut => quote! { .as_mut() },
                 };
 
                 if optic.is_identity() {
-                    quote! { #entity.#convert }
+                    quote! { #entity #convert }
                 } else {
                     let value_name = quote! { __value };
-                    let tail = optic.access_impl(is_mut, quote! { #value_name });
+                    let tail = optic.access_impl(access, quote! { #value_name });
                     let tail = if optic.is_prism() {
                         tail
                     } else {
@@ -155,7 +196,7 @@ impl OpticComponent {
                     };
 
                     quote! {
-                        match #entity.#convert {
+                        match #entity #convert {
                             None => None,
                             Some(#value_name) => { #tail }
                         }
@@ -178,6 +219,35 @@ enum OpticPart {
 
 impl Parse for Optic {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        // dyn
+        if let Some(_dyn) = input.parse::<Option<syn::Token![dyn]>>()? {
+            #[cfg(not(feature = "dynamic"))]
+            {
+                return Err(syn::Error::new_spanned(
+                    _dyn,
+                    "`dyn` components are not available because the `dynamic` feature is disabled",
+                ));
+            }
+
+            #[cfg(feature = "dynamic")]
+            {
+                let ty: syn::Type = input.parse()?;
+
+                let component = if input.parse::<Option<syn::Token![.]>>()?.is_some() {
+                    let parts =
+                        Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(
+                            input,
+                        )?;
+                    let parts: Vec<_> = parts.into_iter().collect();
+                    build_component_optic(&parts)?
+                } else {
+                    OpticComponent::Identity
+                };
+
+                return Ok(Optic::Dynamic { ty, component });
+            }
+        }
+
         let parts = Punctuated::<OpticPartToken, syn::Token![.]>::parse_separated_nonempty(input)?;
 
         let parts: Vec<_> = parts.into_iter().collect();
@@ -245,34 +315,39 @@ impl Parse for Optic {
         }
 
         // Component part
-        let mut component = OpticComponent::Identity;
-        for OpticPartToken(token, part) in component_parts.iter().rev() {
-            component = match part {
-                // OpticPart::Id => {
-                //     return Err(input.error("explicit `_id` is not allowed"));
-                // }
-                OpticPart::GetId => {
-                    return Err(syn::Error::new_spanned(
-                        token,
-                        "`id` must be the first and only optic part",
-                    ));
-                }
-                OpticPart::Some => OpticComponent::Some(Box::new(component)),
-                OpticPart::Field(name) => OpticComponent::Field {
-                    name: name.clone(),
-                    optic: Box::new(component),
-                },
-                OpticPart::Get => {
-                    return Err(syn::Error::new_spanned(
-                        token,
-                        "there can only be one `Get`",
-                    ))
-                }
-            };
-        }
+        let component = build_component_optic(component_parts)?;
 
         Ok(Optic::Access { storage, component })
     }
+}
+
+fn build_component_optic(parts: &[OpticPartToken]) -> syn::Result<OpticComponent> {
+    let mut component = OpticComponent::Identity;
+    for OpticPartToken(token, part) in parts.iter().rev() {
+        component = match part {
+            // OpticPart::Id => {
+            //     return Err(input.error("explicit `_id` is not allowed"));
+            // }
+            OpticPart::GetId => {
+                return Err(syn::Error::new_spanned(
+                    token,
+                    "`id` must be the first and only optic part",
+                ));
+            }
+            OpticPart::Some => OpticComponent::Some(Box::new(component)),
+            OpticPart::Field(name) => OpticComponent::Field {
+                name: name.clone(),
+                optic: Box::new(component),
+            },
+            OpticPart::Get => {
+                return Err(syn::Error::new_spanned(
+                    token,
+                    "there can only be one `Get`",
+                ))
+            }
+        };
+    }
+    Ok(component)
 }
 
 impl Parse for OpticPartToken {
