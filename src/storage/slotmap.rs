@@ -30,6 +30,7 @@ impl<K: slotmap::Key, T> Storage<T> for SecondaryMap<K, T> {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SlotMapIdGenerator<K: slotmap::Key> {
     alive: SlotMap<K, ()>,
 }

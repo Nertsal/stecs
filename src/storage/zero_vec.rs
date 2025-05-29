@@ -12,6 +12,7 @@ pub struct ZeroVecFamily;
 // NOTE: the id is not used to index into the storage directly,
 // but as an auto-inc identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ZeroVecId(usize);
 
 impl StorageFamily for ZeroVecFamily {
@@ -27,6 +28,7 @@ impl<T: SplitFields<ZeroVecFamily>> Splitable for ZeroVec<T> {
 
 /// Storage that acts as a wrapper over [`Vec`].
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ZeroVec<T> {
     data: Vec<T>,
     ids: Vec<ZeroVecId>,
@@ -35,6 +37,7 @@ pub struct ZeroVec<T> {
 
 /// The generator of identifiers for the [`ZeroVec`] storage.
 #[derive(Default, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ZeroVecIdGenerator {
     next_id: usize,
     ids: Vec<ZeroVecId>,

@@ -61,7 +61,7 @@ impl Struct {
         let GenericUsage {
             generics: _,
             generics_family,
-            generics_use: _,
+            generics_use,
             generics_family_use,
         } = generic_usage;
 
@@ -72,8 +72,43 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
 **Note**: It is not intended to be used directly, but rather as, for example, `StructOf<Vec<{struct_name}>>`."#
         );
 
+        let mut derive = Vec::new();
+        if self.derive_serialize || self.derive_deserialize {
+            #[cfg(not(feature = "serde"))]
+            panic!("Enable the `serde` feature to support (de)serialization in archetypes.");
+
+            #[cfg(feature = "serde")]
+            {
+                let mut bounds = Vec::new();
+                if self.derive_serialize {
+                    let bound = format!(
+                        "{}",
+                        quote! {
+                            #struct_split_name <#generic_family_name, #generics_use> : serde::Serialize,
+                            #generic_family_name::IdGenerator: serde::Serialize,
+                        }
+                    );
+                    bounds.push(quote! { serialize = #bound });
+                    derive.push(quote! { #[derive(serde::Serialize)] });
+                }
+                if self.derive_deserialize {
+                    let bound = format!(
+                        "{}",
+                        quote! {
+                            #struct_split_name <#generic_family_name, #generics_use> : serde::Deserialize<'de>,
+                            #generic_family_name::IdGenerator: serde::Deserialize<'de>,
+                        }
+                    );
+                    bounds.push(quote! { deserialize = #bound });
+                    derive.push(quote! { #[derive(serde::Deserialize)] });
+                }
+                derive.push(quote! { #[serde(bound( #(#bounds),* ))] });
+            }
+        }
+
         quote! {
             #[doc = #struct_of_doc]
+            #(#derive)*
             #vis struct #struct_of_name<#generics_family> {
                 /// The id's of all existing entities belonging to this archetype.
                 ///

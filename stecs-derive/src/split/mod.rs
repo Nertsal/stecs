@@ -15,6 +15,8 @@ pub struct SplitOpts {
     generics: syn::Generics,
     debug: Option<()>,
     clone: Option<()>,
+    serialize: Option<()>,
+    deserialize: Option<()>,
 }
 
 #[derive(FromField)]
@@ -33,6 +35,8 @@ struct Struct {
     generics: syn::Generics,
     derive_debug: bool,
     derive_to_owned: bool,
+    derive_serialize: bool,
+    derive_deserialize: bool,
 }
 
 struct Field {
@@ -77,6 +81,8 @@ impl TryFrom<SplitOpts> for Struct {
             generics: value.generics,
             derive_debug: value.debug.is_some(),
             derive_to_owned: value.clone.is_some(),
+            derive_serialize: value.serialize.is_some(),
+            derive_deserialize: value.deserialize.is_some(),
         })
     }
 }

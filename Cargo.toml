@@ -19,6 +19,7 @@ repository = "https://github.com/Nertsal/stecs"
 
 [features]
 default = ["slotmap", "query_mut"]
+serde = ["stecs-derive/serde", "slotmap/serde", "dep:serde"]
 query_mut = ["stecs-derive/query_mut"]
 slotmap = ["dep:slotmap"]
 zero_vec = []
@@ -26,6 +27,7 @@ zero_vec = []
 [dependencies]
 stecs-derive = { path = "stecs-derive", version = "0.1.0" }
 slotmap = { version = "1.0", optional = true }
+serde = { version = "1.0", optional = true, features = ["serde_derive"] }
 
 [dev-dependencies]
 criterion = { version = "0.6", default-features = false, features = ["cargo_bench_support", "plotters", "html_reports"] }
@@ -34,6 +36,7 @@ bevy_ecs = "0.15.3"
 hecs = "0.10.5"
 legion = "0.4.0"
 gecs = "0.3.0"
+serde_json = "1.0.140"
 
 [package.metadata."docs.rs"]
 all-features = true
@@ -62,3 +65,8 @@ required-features = ["slotmap", "query_mut"]
 name = "generics"
 doc-scrape-examples = true
 required-features = ["slotmap"]
+
+[[example]]
+name = "serde"
+doc-scrape-examples = true
+required-features = ["slotmap", "zero_vec", "serde"]

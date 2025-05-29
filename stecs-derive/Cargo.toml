@@ -15,6 +15,7 @@ proc-macro = true
 
 [features]
 default = []
+serde = []
 query_mut = []
 
 [dependencies]

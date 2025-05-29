@@ -67,8 +67,25 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
 **Note**: It is not intended to be used directly, but rather as, for example, `SplitOf<Vec<{struct_name}>>`."#
         );
 
+        let mut derive = Vec::new();
+        if self.derive_serialize || self.derive_deserialize {
+            #[cfg(not(feature = "serde"))]
+            panic!("Enable the `serde` feature to support (de)serialization in archetypes.");
+
+            #[cfg(feature = "serde")]
+            {
+                if self.derive_serialize {
+                    derive.push(quote! { #[derive(serde::Serialize)] });
+                }
+                if self.derive_deserialize {
+                    derive.push(quote! { #[derive(serde::Deserialize)] });
+                }
+            }
+        }
+
         quote! {
             #[doc = #struct_split_doc]
+            #(#derive)*
             #vis struct #struct_split_name<#generics_family> {
                 #(#fields)*
             }
