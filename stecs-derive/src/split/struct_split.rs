@@ -67,7 +67,7 @@ This struct is a version of `{struct_name}` that holds each field in its own [St
 **Note**: It is not intended to be used directly, but rather as, for example, `SplitOf<Vec<{struct_name}>>`."#
         );
 
-        let mut derive = Vec::new();
+        let mut derive: Vec<TokenStream> = Vec::new();
         if self.derive_serialize || self.derive_deserialize {
             #[cfg(not(feature = "serde"))]
             panic!("Enable the `serde` feature to support (de)serialization in archetypes.");
